@@ -21,10 +21,10 @@ export async function checkAiStatus(): Promise<{
   model: string;
 }> {
   try {
-    const res = await fetch('/api/status');
-    if (!res.ok) throw new Error('Status endpoint failed');
+    const res = await fetch('/api/status').catch(() => null);
+    if (!res || !res.ok) throw new Error('Status endpoint unavailable');
     return await res.json();
-  } catch (e) {
+  } catch {
     return {
       aiStatus: 'offline',
       provider: 'none',
@@ -45,11 +45,11 @@ export async function fetchGuardianCopy(params: {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
-    });
-    if (!res.ok) throw new Error('Guardian API call failed');
+    }).catch(() => null);
+    if (!res || !res.ok) throw new Error('Guardian endpoint unavailable');
     return await res.json();
-  } catch (e) {
-    // Client-side fallback if network error
+  } catch {
+    // Client-side fallback if network error or static offline mode
     const isEs = params.lang === 'es';
     if (params.tier === 'QUARANTINE') {
       return {
@@ -94,10 +94,10 @@ export async function fetchStaffAssist(params: {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
-    });
-    if (!res.ok) throw new Error('Staff Assist API call failed');
+    }).catch(() => null);
+    if (!res || !res.ok) throw new Error('Staff Assist endpoint unavailable');
     return await res.json();
-  } catch (e) {
+  } catch {
     if (params.isBranch) {
       return {
         summary: [
@@ -110,6 +110,22 @@ export async function fetchStaffAssist(params: {
           "Engage member with compassion and zero blame",
           "Offer quiet consultation away from active phone pressure",
           "Provide member option to cancel or freeze transaction immediately"
+        ],
+        is_live_ai: false
+      };
+    }
+    if (params.tier === 'LIGHT') {
+      return {
+        summary: [
+          `Mover profile signature: Address-only change following password reset with new payee ${params.rail} transfer ($${params.amount.toFixed(2)}).`,
+          `One-tap verification dispatched to unchanged primary phone on file.`,
+          `Citations: ${params.citations.join(', ')}.`
+        ],
+        script: `Hello from Sound Credit Union. We noticed an address update accompanied by a new payee setup. We sent a quick one-tap verification to your mobile phone to safely authorize this transfer.`,
+        nextActions: [
+          "Allow automated one-tap resolution (typical resolution under 30 seconds)",
+          "If member calls in: perform standard phone verification and release hold with 1-click",
+          "No secondary staff sign-off required for LIGHT tier"
         ],
         is_live_ai: false
       };
@@ -130,3 +146,4 @@ export async function fetchStaffAssist(params: {
     };
   }
 }
+

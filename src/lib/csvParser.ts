@@ -1,4 +1,5 @@
 import { DemoEvent } from '../types.ts';
+import rawCsv from '../../public/data/demo_events_subset.csv?raw';
 
 export function parseCSV(csvText: string): DemoEvent[] {
   const lines = csvText.trim().split(/\r?\n/);
@@ -80,10 +81,5 @@ function parseCSVLine(line: string): string[] {
 }
 
 export async function loadDemoCSV(): Promise<DemoEvent[]> {
-  const response = await fetch('/data/demo_events_subset.csv');
-  if (!response.ok) {
-    throw new Error(`Failed to load CSV: ${response.status} ${response.statusText}`);
-  }
-  const text = await response.text();
-  return parseCSV(text);
+  return parseCSV(rawCsv);
 }
