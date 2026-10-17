@@ -1,0 +1,13 @@
+{
+  "entries": [
+    {
+      "path": "~/.gemini/config/skills"
+    },
+    {
+      "path": "~/.agents/skills"
+    },
+    {
+      "path": "skills"
+    }
+  ]
+}

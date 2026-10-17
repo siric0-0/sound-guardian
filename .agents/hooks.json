@@ -1,0 +1,19 @@
+{
+  "goal-pipeline-hook": {
+    "enabled": true,
+    "PreInvocation": [
+      {
+        "type": "command",
+        "command": "python ./hooks/goal_hook.py pre_invocation",
+        "timeout": 30
+      }
+    ],
+    "Stop": [
+      {
+        "type": "command",
+        "command": "python ./hooks/goal_hook.py stop",
+        "timeout": 30
+      }
+    ]
+  }
+}

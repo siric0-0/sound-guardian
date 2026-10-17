@@ -1,0 +1,7 @@
+{
+  "name": "Sound Guardian",
+  "description": "Stop the Scam Before the Money Moves: Two-tier Account Takeover (ATO) shield and educational prototype for Sound Credit Union.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
