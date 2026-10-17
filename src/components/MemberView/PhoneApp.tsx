@@ -22,6 +22,7 @@ import {
   ChevronRight,
   Clock,
   X,
+  ArrowLeft,
 } from 'lucide-react';
 import { maskPhone } from '../../lib/tokenization.ts';
 
@@ -48,6 +49,8 @@ interface PhoneAppProps {
   onOpenScamModal: () => void;
   onRequestAtBranch?: () => void;
   onRequestFastPath?: () => void;
+  onSwitchToStaffConsole?: (tab?: 'branch' | 'cases') => void;
+  onReturnToStories?: () => void;
   activeTab: 'home' | 'pay' | 'activity' | 'help';
   setActiveTab: (tab: 'home' | 'pay' | 'activity' | 'help') => void;
   payStep: 1 | 2 | 3 | 4;
@@ -70,6 +73,8 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
   onOpenScamModal,
   onRequestAtBranch,
   onRequestFastPath,
+  onSwitchToStaffConsole,
+  onReturnToStories,
   activeTab,
   setActiveTab,
   payStep,
@@ -84,20 +89,35 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
   const isMoverConfirmed = !!memberActions.confirmedMover;
   const isJamesCancelled = !!memberActions.cancelledJames;
 
-  // Payee name & Amount
+  // Extract persona's payment data row from CSV
+  const paymentRow = useMemo(() => {
+    return (
+      events.find((e) => e.event_type === 'Payment Initiated' && e.amount > 0) ||
+      events.find((e) => e.amount > 0)
+    );
+  }, [events]);
+
   const payeeName = useMemo(() => {
     if (scenarioId === 'mover_legitimate') return 'Belltown Properties LLC';
     if (scenarioId === 'james_branch') return 'Cash Withdrawal (Branch)';
-    return 'quick_transfer_p2p (New payee)';
+    return 'quick_transfer_p2p (REC_8821)';
   }, [scenarioId]);
 
   const paymentAmount = useMemo(() => {
+    if (paymentRow?.amount && paymentRow.amount > 0) return paymentRow.amount;
     if (currentEvent.amount && currentEvent.amount > 0) return currentEvent.amount;
     if (scenarioId === 'sarah_ato') return 1574.18;
     if (scenarioId === 'mover_legitimate') return 4151.68;
     if (scenarioId === 'james_branch') return 7000.0;
     return 1574.18;
-  }, [currentEvent.amount, scenarioId]);
+  }, [paymentRow, currentEvent.amount, scenarioId]);
+
+  const paymentRail = useMemo(() => {
+    if (paymentRow?.payment_rail) return paymentRow.payment_rail;
+    if (scenarioId === 'mover_legitimate') return 'ACH';
+    if (scenarioId === 'james_branch') return 'Cash';
+    return 'P2P';
+  }, [paymentRow, scenarioId]);
 
   const checkingBalance = currentEvent.available_balance_after || 5420.50;
 
@@ -131,12 +151,23 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
             {isEs ? 'Banca Digital de Sound' : 'Sound Digital Banking'}
           </span>
         </div>
-        <div className="w-7 h-7 rounded-full bg-[#0082CA] text-white flex items-center justify-center font-bold text-xs">
-          S
+        <div className="flex items-center gap-2">
+          {onReturnToStories && (
+            <button
+              onClick={onReturnToStories}
+              className="text-[10px] bg-white/10 hover:bg-white/20 text-[#E1F0F8] px-2 py-1 rounded transition-colors cursor-pointer"
+              title="Return to story selector"
+            >
+              Exit
+            </button>
+          )}
+          <div className="w-7 h-7 rounded-full bg-[#0082CA] text-white flex items-center justify-center font-bold text-xs">
+            S
+          </div>
         </div>
       </div>
 
-      {/* Screen Body (Tabs) */}
+      {/* Screen Body */}
       <div className="flex-1 overflow-y-auto p-4 bg-[#F4F8FA]">
         {/* ================= HOME TAB ================= */}
         {activeTab === 'home' && (
@@ -157,7 +188,7 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
               </div>
             </div>
 
-            {/* Alert Card (If something needs attention) */}
+            {/* Alert Card: Quarantine Alert */}
             {isQuarantine && !isFrozen && (
               <div className="bg-[#FEF3F2] border-2 border-[#FECDCA] rounded-xl p-3.5 text-xs text-[#7A271A] space-y-2">
                 <div className="flex items-center gap-2 font-bold text-[#912018]">
@@ -174,13 +205,14 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
                     setActiveTab('pay');
                     setPayStep(3);
                   }}
-                  className="w-full py-2 rounded-lg bg-[#B42318] text-white font-semibold text-xs text-center cursor-pointer hover:bg-[#912018]"
+                  className="w-full py-2 rounded-lg bg-[#B42318] hover:bg-[#912018] text-white font-semibold text-xs text-center cursor-pointer transition-colors shadow-2xs"
                 >
                   {isEs ? 'Revisar Destinatario' : 'Review Payee Check'}
                 </button>
               </div>
             )}
 
+            {/* Alert Card: Light Tier Check */}
             {isLight && !isMoverConfirmed && (
               <div className="bg-[#FFFAEB] border-2 border-[#FEDF89] rounded-xl p-3.5 text-xs text-[#7A2E0E] space-y-2">
                 <div className="flex items-center gap-2 font-bold text-[#B54708]">
@@ -197,13 +229,14 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
                     setActiveTab('pay');
                     setPayStep(3);
                   }}
-                  className="w-full py-2 rounded-lg bg-[#067647] text-white font-semibold text-xs text-center cursor-pointer hover:bg-[#054F31]"
+                  className="w-full py-2 rounded-lg bg-[#067647] hover:bg-[#054F31] text-white font-semibold text-xs text-center cursor-pointer transition-colors shadow-2xs"
                 >
                   {isEs ? 'Confirmar Pago (8 segundos)' : 'Review 1-Tap Check'}
                 </button>
               </div>
             )}
 
+            {/* Alert Card: Account Secured */}
             {isFrozen && (
               <div className="bg-[#ECFDF3] border-2 border-[#A6F4C5] rounded-xl p-3.5 text-xs text-[#054F31] space-y-1.5">
                 <div className="flex items-center gap-2 font-bold text-[#067647]">
@@ -255,325 +288,381 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
               </div>
             </div>
 
-            {/* Quick Action to Pay */}
-            <button
-              onClick={() => {
-                setActiveTab('pay');
-                setPayStep(1);
-              }}
-              className="w-full h-12 rounded-lg bg-[#002D72] hover:bg-[#001D4A] text-white font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors"
-            >
-              <Send className="w-4 h-4" />
-              <span>{isEs ? 'Enviar Dinero' : 'Send Money'}</span>
-            </button>
+            {/* Action to Pay (or Note for James) */}
+            {scenarioId === 'james_branch' ? (
+              <button
+                onClick={() => setActiveTab('pay')}
+                className="w-full h-12 rounded-lg bg-[#002D72] hover:bg-[#001D4A] text-white font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors"
+              >
+                <Building2 className="w-4 h-4 text-[#0082CA]" />
+                <span>Check Digital Payments Status</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  setActiveTab('pay');
+                  setPayStep(1);
+                }}
+                className="w-full h-12 rounded-lg bg-[#002D72] hover:bg-[#001D4A] text-white font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors"
+              >
+                <Send className="w-4 h-4" />
+                <span>{isEs ? 'Enviar Dinero' : 'Send Money'}</span>
+              </button>
+            )}
           </div>
         )}
 
-        {/* ================= PAY TAB (4-STEP FLOW) ================= */}
+        {/* ================= PAY TAB ================= */}
         {activeTab === 'pay' && (
           <div className="space-y-4">
-            {/* Progress Dot Row */}
-            <div className="bg-white rounded-xl p-3 border border-[#D0D9E2] flex items-center justify-between text-[11px]">
-              <span className="font-semibold text-[#002D72]">
-                Step {payStep} of 4: {payStep === 1 ? 'Payee' : payStep === 2 ? 'Amount' : payStep === 3 ? 'Review' : 'Result'}
-              </span>
-              <div className="flex items-center gap-1.5">
-                {[1, 2, 3, 4].map((step) => (
-                  <div
-                    key={step}
-                    className={`w-2 h-2 rounded-full transition-all ${
-                      payStep === step
-                        ? 'w-5 bg-[#002D72]'
-                        : payStep > step
-                        ? 'bg-[#0082CA]'
-                        : 'bg-[#D0D9E2]'
-                    }`}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* STEP 1: PAYEE */}
-            {payStep === 1 && (
-              <div className="bg-white rounded-xl p-4 border border-[#D0D9E2] space-y-4">
-                <div>
-                  <h3 className="font-serif font-bold text-sm text-[#002D72]">
-                    {isEs ? 'Seleccione o revise el destinatario' : 'Select or Review Payee'}
+            {/* SPECIAL CASE: JAMES HAS NO DIGITAL PAYMENT */}
+            {scenarioId === 'james_branch' ? (
+              <div className="bg-white rounded-xl p-5 border border-[#D0D9E2] text-center space-y-4 shadow-2xs">
+                <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center mx-auto">
+                  <Building2 className="w-6 h-6" />
+                </div>
+                <div className="space-y-1.5">
+                  <h3 className="font-serif font-bold text-base text-[#002D72]">
+                    No digital payment in this story
                   </h3>
-                  <p className="text-[11px] text-[#5B6B7A]">
-                    {isEs ? 'Pagos P2P o transferencias directas' : 'P2P payments & direct transfers'}
+                  <p className="text-xs text-[#5B6B7A] leading-relaxed max-w-xs mx-auto">
+                    James is being coerced in-person to withdraw $7,000 cash at the Tacoma branch. This scam does not use digital banking rails.
                   </p>
                 </div>
-
-                <div className="p-3 bg-[#F4F8FA] rounded-lg border border-[#D0D9E2] space-y-1">
-                  <span className="text-[10px] text-[#5B6B7A] uppercase font-bold tracking-wider">
-                    {isEs ? 'Destinatario Activo' : 'Active Payee'}
-                  </span>
-                  <div className="font-bold text-xs text-[#002D72]">{payeeName}</div>
-                  <div className="text-[11px] text-amber-700 font-medium">
-                    {isEs ? 'Destinatario nuevo agregado hoy' : 'New payee added today'}
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => setPayStep(2)}
-                  className="w-full h-12 rounded-lg bg-[#002D72] hover:bg-[#001D4A] text-white font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors"
-                >
-                  <span>{isEs ? 'Continuar al Monto' : 'Continue to Amount'}</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-
-            {/* STEP 2: AMOUNT */}
-            {payStep === 2 && (
-              <div className="bg-white rounded-xl p-4 border border-[#D0D9E2] space-y-4">
-                <div>
-                  <h3 className="font-serif font-bold text-sm text-[#002D72]">
-                    {isEs ? 'Monto a transferir' : 'Transfer Amount'}
-                  </h3>
-                  <p className="text-[11px] text-[#5B6B7A]">
-                    {isEs ? `Para: ${payeeName}` : `To: ${payeeName}`}
-                  </p>
-                </div>
-
-                <div className="p-4 bg-[#F4F8FA] rounded-lg border border-[#D0D9E2] text-center">
-                  <span className="font-mono text-3xl font-bold text-[#002D72]">
-                    ${paymentAmount.toFixed(2)}
-                  </span>
-                  <span className="block text-[11px] text-[#5B6B7A] mt-1">
-                    Classic Checking (··9412)
-                  </span>
-                </div>
-
-                <button
-                  onClick={() => setPayStep(3)}
-                  className="w-full h-12 rounded-lg bg-[#002D72] hover:bg-[#001D4A] text-white font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors"
-                >
-                  <span>{isEs ? 'Revisar Pago' : 'Review Payment'}</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-
-                <div className="text-center">
+                <div className="space-y-2 pt-2">
                   <button
-                    onClick={() => setPayStep(1)}
-                    className="text-xs text-[#0082CA] hover:underline cursor-pointer"
+                    onClick={() => {
+                      if (onSwitchToStaffConsole) {
+                        onSwitchToStaffConsole('branch');
+                      }
+                    }}
+                    className="w-full h-12 rounded-lg bg-[#002D72] hover:bg-[#001D4A] text-white font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors"
                   >
-                    {isEs ? 'Volver al Destinatario' : 'Back to Payee'}
+                    <span>Open Branch Mode in Staff Console</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('home')}
+                    className="w-full text-xs text-[#0082CA] hover:underline cursor-pointer py-1"
+                  >
+                    Return to Home
                   </button>
                 </div>
               </div>
-            )}
-
-            {/* STEP 3: REVIEW / PROTECTION INTERCEPT */}
-            {payStep === 3 && (
-              <div className="space-y-3">
-                {/* SARAH ATO: QUARANTINE INTERCEPT */}
-                {isQuarantine && !isFrozen && (
-                  <div className="bg-[#FEF3F2] border-2 border-[#FECDCA] rounded-xl p-4 text-xs text-[#7A271A] space-y-3">
-                    <div className="flex items-center gap-2">
-                      <ShieldAlert className="w-5 h-5 text-[#B42318] shrink-0" />
-                      <div>
-                        <h4 className="font-serif font-bold text-sm text-[#912018]">
-                          {isEs ? 'Destinatario Bloqueado · Confirmación Requerida' : 'Payee Blocked · Confirmation Required'}
-                        </h4>
-                        <span className="text-[10px] text-[#7A271A]">
-                          {isEs ? 'Bloqueo previo al envío de fondos' : 'Pre-send lock engaged upfront'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Coercion Warning */}
-                    <div className="bg-[#FFFAEB] border border-[#FEDF89] rounded-lg p-2.5 text-[11px] text-[#7A2E0E]">
-                      <strong>Notice:</strong> Sound will never call or text asking for your confirmation code.
-                    </div>
-
-                    <p className="text-[11px] leading-relaxed">
-                      To keep your money safe, a confirmation was sent to the phone on file before recent updates ({maskPhone('(206) 555-4821')}).
-                      Payments to this payee are locked upfront.
-                    </p>
-
-                    {/* Primary 48px Navy Button */}
-                    <button
-                      onClick={() => {
-                        onFreezeAndRecover();
-                        setPayStep(4);
-                      }}
-                      className="w-full h-12 rounded-lg bg-[#002D72] hover:bg-[#001D4A] text-white font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors"
-                    >
-                      <Lock className="w-4 h-4" />
-                      <span>{isEs ? 'Congelar y Recuperar (No fui yo)' : 'Freeze & Recover (This Was Not Me)'}</span>
-                    </button>
-
-                    <div className="flex items-center justify-between pt-1 text-[11px]">
-                      {onRequestAtBranch && (
-                        <button
-                          onClick={onRequestAtBranch}
-                          className="text-[#0082CA] hover:underline cursor-pointer"
-                        >
-                          {memberActions.branchPriority ? 'Marked Branch Priority' : 'Request at Branch'}
-                        </button>
-                      )}
-                      <button
-                        onClick={() => {
-                          onConfirmLegitimate();
-                          setPayStep(4);
-                        }}
-                        className="text-[#067647] hover:underline cursor-pointer font-medium"
-                      >
-                        Approve Payee
-                      </button>
-                    </div>
+            ) : (
+              /* REGULAR 4-STEP PAY FLOW FOR SARAH & MOVER */
+              <>
+                {/* Progress Dot Row */}
+                <div className="bg-white rounded-xl p-3 border border-[#D0D9E2] flex items-center justify-between text-[11px]">
+                  <span className="font-semibold text-[#002D72]">
+                    Step {payStep} of 4: {payStep === 1 ? 'Payee' : payStep === 2 ? 'Amount' : payStep === 3 ? 'Review' : 'Result'}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {[1, 2, 3, 4].map((step) => (
+                      <div
+                        key={step}
+                        className={`w-2 h-2 rounded-full transition-all ${
+                          payStep === step
+                            ? 'w-5 bg-[#002D72]'
+                            : payStep > step
+                            ? 'bg-[#0082CA]'
+                            : 'bg-[#D0D9E2]'
+                        }`}
+                      />
+                    ))}
                   </div>
-                )}
-
-                {/* LEGITIMATE MOVER: LIGHT TIER CHECK */}
-                {isLight && !isMoverConfirmed && (
-                  <div className="bg-[#FFFAEB] border-2 border-[#FEDF89] rounded-xl p-4 text-xs text-[#7A2E0E] space-y-3">
-                    <div className="flex items-center gap-2">
-                      <ShieldCheck className="w-5 h-5 text-[#B54708] shrink-0" />
-                      <div>
-                        <h4 className="font-serif font-bold text-sm text-[#93370D]">
-                          {isEs ? 'Verificación rápida: ¿fue usted?' : 'Quick check: was this you?'}
-                        </h4>
-                        <span className="text-[10px] text-[#7A2E0E]">
-                          {isEs ? 'Comprobación de 1 toque en 8 segundos' : '1-tap check resolves in 8 seconds'}
-                        </span>
-                      </div>
-                    </div>
-
-                    <p className="text-[11px] leading-relaxed">
-                      You recently reset your password and updated your address, and this is a new payee.
-                      Tap below to confirm this ${paymentAmount.toFixed(2)} payment.
-                    </p>
-
-                    {/* Primary 48px Navy Button */}
-                    <button
-                      onClick={() => {
-                        onConfirmMoverYes();
-                        setPayStep(4);
-                      }}
-                      className="w-full h-12 rounded-lg bg-[#002D72] hover:bg-[#001D4A] text-white font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors"
-                    >
-                      <CheckCircle2 className="w-4 h-4" />
-                      <span>{isEs ? 'Sí, fui yo (Confirmar y Enviar)' : 'Yes, this was me (Confirm & Send)'}</span>
-                    </button>
-
-                    <div className="text-center pt-1">
-                      <button
-                        onClick={() => {
-                          onConfirmMoverNo();
-                          setPayStep(4);
-                        }}
-                        className="text-xs text-[#B42318] hover:underline cursor-pointer"
-                      >
-                        {isEs ? 'No, no fui yo (Detener)' : "No, this wasn't me"}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* JAMES IN-BRANCH SCAM INQUIRY */}
-                {scenarioId === 'james_branch' && !isJamesCancelled && (
-                  <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-4 text-xs text-amber-900 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <Building2 className="w-5 h-5 text-amber-700 shrink-0" />
-                      <h4 className="font-serif font-bold text-sm text-amber-950">
-                        Tacoma Branch Teller Security Inquiry
-                      </h4>
-                    </div>
-
-                    <div className="p-3 bg-white rounded-lg border border-amber-200 text-[11px] italic text-[#1B2733] leading-relaxed">
-                      "Mr. James, before we complete this cash withdrawal, our policy is to pause and ask: Has anyone told you to keep this secret, stay on the phone, or transfer these funds to protect your money?"
-                    </div>
-
-                    {/* Primary 48px Navy Button */}
-                    <button
-                      onClick={() => {
-                        setPayStep(4);
-                      }}
-                      className="w-full h-12 rounded-lg bg-[#002D72] hover:bg-[#001D4A] text-white font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors"
-                    >
-                      <span>Cancel Withdrawal & Protect Funds</span>
-                    </button>
-
-                    <div className="text-center pt-1">
-                      <button
-                        onClick={() => setPayStep(4)}
-                        className="text-xs text-[#5B6B7A] hover:underline cursor-pointer"
-                      >
-                        Proceed anyway
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* If already frozen or confirmed */}
-                {(isFrozen || isMoverConfirmed || isJamesCancelled) && (
-                  <div className="text-center py-6">
-                    <button
-                      onClick={() => setPayStep(4)}
-                      className="w-full h-12 rounded-lg bg-[#002D72] text-white font-semibold text-xs cursor-pointer"
-                    >
-                      View Outcome
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* STEP 4: RESULT (SHORT GREEN OUTCOME CARDS) */}
-            {payStep === 4 && (
-              <div className="bg-[#ECFDF3] border-2 border-[#A6F4C5] rounded-xl p-5 text-xs text-[#054F31] space-y-3 text-center">
-                <div className="w-10 h-10 rounded-full bg-[#D1FADF] text-[#067647] flex items-center justify-center mx-auto">
-                  <CheckCircle2 className="w-6 h-6 stroke-[2.2]" />
                 </div>
 
-                {isFrozen ? (
-                  <>
-                    <h3 className="font-serif font-bold text-base text-[#054F31]">
-                      {isEs ? 'Su cuenta está protegida' : 'Your account is secured'}
-                    </h3>
-                    <p className="text-[11px] leading-relaxed text-[#067647]">
-                      {isEs
-                        ? 'Bloqueamos adiciones de destinatarios no autorizados y detuvimos los pagos. Su saldo está a salvo.'
-                        : "We've locked unauthorized payee additions, stopped outgoing payments, and protected your balance."}
-                    </p>
-                  </>
-                ) : isMoverConfirmed ? (
-                  <>
-                    <h3 className="font-serif font-bold text-base text-[#054F31]">
-                      {isEs ? 'Pago enviado, tomó 8 segundos' : 'Payment sent, took 8 seconds'}
-                    </h3>
-                    <p className="text-[11px] leading-relaxed text-[#067647]">
-                      {isEs
-                        ? 'Listo. Su pago está en camino. Gracias por confirmar.'
-                        : 'Done. Your payment is on its way. Thanks for confirming. This took 8 seconds.'}
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <h3 className="font-serif font-bold text-base text-[#054F31]">
-                      {isEs ? 'Retiro cancelado' : 'Withdrawal cancelled'}
-                    </h3>
-                    <p className="text-[11px] leading-relaxed text-[#067647]">
-                      {isEs
-                        ? 'Sus fondos permanecen en su cuenta. Cero pérdidas.'
-                        : 'Your funds remain safely in your account. Zero loss.'}
-                    </p>
-                  </>
+                {/* STEP 1: PAYEE */}
+                {payStep === 1 && (
+                  <div className="bg-white rounded-xl p-4 border border-[#D0D9E2] space-y-4">
+                    <div>
+                      <h3 className="font-serif font-bold text-sm text-[#002D72]">
+                        {isEs ? 'Seleccione o revise el destinatario' : 'Select or Review Payee'}
+                      </h3>
+                      <p className="text-[11px] text-[#5B6B7A]">
+                        {isEs ? 'Pagos P2P o transferencias directas' : 'P2P payments & direct transfers'}
+                      </p>
+                    </div>
+
+                    <div className="p-3 bg-[#F4F8FA] rounded-lg border border-[#D0D9E2] space-y-1">
+                      <span className="text-[10px] text-[#5B6B7A] uppercase font-bold tracking-wider">
+                        {isEs ? 'Destinatario Activo' : 'Active Payee'}
+                      </span>
+                      <div className="font-bold text-xs text-[#002D72]">{payeeName}</div>
+                      <div className="text-[11px] text-amber-700 font-medium">
+                        {isEs ? 'Destinatario nuevo agregado hoy' : 'New payee added today'}
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => setPayStep(2)}
+                      className="w-full h-12 rounded-lg bg-[#002D72] hover:bg-[#001D4A] text-white font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors"
+                    >
+                      <span>{isEs ? 'Continuar al Monto' : 'Continue to Amount'}</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+
+                    <div className="text-center">
+                      <button
+                        onClick={() => setActiveTab('home')}
+                        className="text-xs text-[#0082CA] hover:underline cursor-pointer"
+                      >
+                        {isEs ? 'Volver al Inicio' : 'Back to Home'}
+                      </button>
+                    </div>
+                  </div>
                 )}
 
-                <button
-                  onClick={() => {
-                    setActiveTab('home');
-                    setPayStep(1);
-                  }}
-                  className="w-full h-10 rounded-lg bg-[#067647] hover:bg-[#054F31] text-white font-semibold text-xs cursor-pointer transition-colors"
-                >
-                  {isEs ? 'Volver al Inicio' : 'Back to Home'}
-                </button>
-              </div>
+                {/* STEP 2: AMOUNT */}
+                {payStep === 2 && (
+                  <div className="bg-white rounded-xl p-4 border border-[#D0D9E2] space-y-4">
+                    <div>
+                      <h3 className="font-serif font-bold text-sm text-[#002D72]">
+                        {isEs ? 'Monto a transferir' : 'Transfer Amount'}
+                      </h3>
+                      <p className="text-[11px] text-[#5B6B7A]">
+                        {isEs ? `Para: ${payeeName}` : `To: ${payeeName}`}
+                      </p>
+                    </div>
+
+                    <div className="p-4 bg-[#F4F8FA] rounded-lg border border-[#D0D9E2] text-center">
+                      <span className="font-mono text-3xl font-bold text-[#002D72]">
+                        ${paymentAmount.toFixed(2)}
+                      </span>
+                      <span className="block text-[11px] text-[#5B6B7A] mt-1">
+                        From: Classic Checking (··9412) · Rail: {paymentRail}
+                      </span>
+                    </div>
+
+                    <button
+                      onClick={() => setPayStep(3)}
+                      className="w-full h-12 rounded-lg bg-[#002D72] hover:bg-[#001D4A] text-white font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors"
+                    >
+                      <span>{isEs ? 'Revisar Pago' : 'Review Payment'}</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+
+                    <div className="text-center">
+                      <button
+                        onClick={() => setPayStep(1)}
+                        className="text-xs text-[#0082CA] hover:underline cursor-pointer"
+                      >
+                        {isEs ? 'Volver al Destinatario' : 'Back to Payee'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* STEP 3: REVIEW / PROTECTION INTERCEPT (ALWAYS SHOWS PAYMENT ROW) */}
+                {payStep === 3 && (
+                  <div className="space-y-3">
+                    {/* ALWAYS VISIBLE PAYMENT DETAILS CARD FILLED FROM CSV */}
+                    <div className="bg-white rounded-xl p-3.5 border border-[#D0D9E2] space-y-2 shadow-2xs">
+                      <div className="flex items-center justify-between text-xs pb-1.5 border-b border-[#D0D9E2]">
+                        <span className="text-[#5B6B7A]">From Account:</span>
+                        <strong className="text-[#002D72]">Classic Checking (··9412)</strong>
+                      </div>
+                      <div className="flex items-center justify-between text-xs pb-1.5 border-b border-[#D0D9E2]">
+                        <span className="text-[#5B6B7A]">To Payee:</span>
+                        <strong className="text-[#002D72]">{payeeName}</strong>
+                      </div>
+                      <div className="flex items-center justify-between text-xs pb-1.5 border-b border-[#D0D9E2]">
+                        <span className="text-[#5B6B7A]">Amount:</span>
+                        <strong className="font-mono text-sm text-[#002D72]">${paymentAmount.toFixed(2)}</strong>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-[#5B6B7A]">Payment Rail:</span>
+                        <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-slate-100 text-[#002D72] font-semibold">
+                          {paymentRail}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* SARAH ATO: QUARANTINE INTERCEPT */}
+                    {scenarioId === 'sarah_ato' && !isFrozen && (
+                      <div className="bg-[#FEF3F2] border-2 border-[#FECDCA] rounded-xl p-4 text-xs text-[#7A271A] space-y-3">
+                        <div className="flex items-center gap-2">
+                          <ShieldAlert className="w-5 h-5 text-[#B42318] shrink-0" />
+                          <div>
+                            <h4 className="font-serif font-bold text-sm text-[#912018]">
+                              {isEs ? 'Destinatario Bloqueado · Confirmación Requerida' : 'Payee Blocked · Confirmation Required'}
+                            </h4>
+                            <span className="text-[10px] text-[#7A271A]">
+                              {isEs ? 'Bloqueo previo al envío de fondos' : 'Pre-send lock engaged upfront'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Coercion Warning */}
+                        <div className="bg-[#FFFAEB] border border-[#FEDF89] rounded-lg p-2.5 text-[11px] text-[#7A2E0E]">
+                          <strong>Notice:</strong> Sound will never call or text asking for your confirmation code.
+                        </div>
+
+                        <p className="text-[11px] leading-relaxed">
+                          To keep your money safe, a confirmation was sent to the phone on file before recent updates ({maskPhone('(206) 555-4821')}).
+                          Payments to this payee are locked upfront.
+                        </p>
+
+                        {/* Primary 48px Navy Button */}
+                        <button
+                          onClick={() => {
+                            onFreezeAndRecover();
+                            setPayStep(4);
+                          }}
+                          className="w-full h-12 rounded-lg bg-[#002D72] hover:bg-[#001D4A] text-white font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors"
+                        >
+                          <Lock className="w-4 h-4" />
+                          <span>{isEs ? 'Congelar y Recuperar (No fui yo)' : 'Freeze & Recover (This Was Not Me)'}</span>
+                        </button>
+
+                        <div className="flex items-center justify-between pt-1 text-[11px]">
+                          {onRequestAtBranch && (
+                            <button
+                              onClick={onRequestAtBranch}
+                              className="text-[#0082CA] hover:underline cursor-pointer"
+                            >
+                              {memberActions.branchPriority ? 'Marked Branch Priority' : 'Request at Branch'}
+                            </button>
+                          )}
+                          <button
+                            onClick={() => {
+                              onConfirmLegitimate();
+                              setPayStep(4);
+                            }}
+                            className="text-[#067647] hover:underline cursor-pointer font-medium"
+                          >
+                            Approve Payee
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* LEGITIMATE MOVER: LIGHT TIER CHECK */}
+                    {scenarioId === 'mover_legitimate' && !isMoverConfirmed && (
+                      <div className="bg-[#FFFAEB] border-2 border-[#FEDF89] rounded-xl p-4 text-xs text-[#7A2E0E] space-y-3">
+                        <div className="flex items-center gap-2">
+                          <ShieldCheck className="w-5 h-5 text-[#B54708] shrink-0" />
+                          <div>
+                            <h4 className="font-serif font-bold text-sm text-[#93370D]">
+                              {isEs ? 'Verificación rápida: ¿fue usted?' : 'Quick check: was this you?'}
+                            </h4>
+                            <span className="text-[10px] text-[#7A2E0E]">
+                              {isEs ? 'Comprobación de 1 toque en 8 segundos' : '1-tap check resolves in 8 seconds'}
+                            </span>
+                          </div>
+                        </div>
+
+                        <p className="text-[11px] leading-relaxed">
+                          You recently reset your password and updated your address, and this is a new payee.
+                          Tap below to confirm this ${paymentAmount.toFixed(2)} payment.
+                        </p>
+
+                        {/* Primary 48px Navy Button */}
+                        <button
+                          onClick={() => {
+                            onConfirmMoverYes();
+                            setPayStep(4);
+                          }}
+                          className="w-full h-12 rounded-lg bg-[#002D72] hover:bg-[#001D4A] text-white font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors"
+                        >
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span>{isEs ? 'Sí, fui yo (Confirmar y Enviar)' : 'Yes, this was me (Confirm & Send)'}</span>
+                        </button>
+
+                        <div className="text-center pt-1">
+                          <button
+                            onClick={() => {
+                              onConfirmMoverNo();
+                              setPayStep(4);
+                            }}
+                            className="text-xs text-[#B42318] hover:underline cursor-pointer"
+                          >
+                            {isEs ? 'No, no fui yo (Detener)' : "No, this wasn't me"}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* If already frozen or confirmed */}
+                    {(isFrozen || isMoverConfirmed) && (
+                      <div className="bg-white rounded-xl p-4 border border-[#D0D9E2] text-center space-y-2">
+                        <span className="text-xs text-[#067647] font-semibold block">
+                          Status: {isFrozen ? 'Account Protected & Rails Frozen' : 'Payment Approved & Dispatched'}
+                        </span>
+                        <button
+                          onClick={() => setPayStep(4)}
+                          className="w-full h-12 rounded-lg bg-[#002D72] text-white font-semibold text-xs cursor-pointer shadow-xs hover:bg-[#001D4A] transition-colors"
+                        >
+                          View Outcome Screen
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Way Out: Back to Amount */}
+                    <div className="text-center pt-1">
+                      <button
+                        onClick={() => setPayStep(2)}
+                        className="text-xs text-[#0082CA] hover:underline cursor-pointer"
+                      >
+                        Back to Amount
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* STEP 4: RESULT (SHORT GREEN OUTCOME CARDS) */}
+                {payStep === 4 && (
+                  <div className="bg-[#ECFDF3] border-2 border-[#A6F4C5] rounded-xl p-5 text-xs text-[#054F31] space-y-3 text-center shadow-xs">
+                    <div className="w-10 h-10 rounded-full bg-[#D1FADF] text-[#067647] flex items-center justify-center mx-auto">
+                      <CheckCircle2 className="w-6 h-6 stroke-[2.2]" />
+                    </div>
+
+                    {isFrozen ? (
+                      <>
+                        <h3 className="font-serif font-bold text-base text-[#054F31]">
+                          {isEs ? 'Su cuenta está protegida' : 'Your account is secured'}
+                        </h3>
+                        <p className="text-[11px] leading-relaxed text-[#067647]">
+                          {isEs
+                            ? 'Bloqueamos adiciones de destinatarios no autorizados y detuvimos los pagos. Su saldo está a salvo.'
+                            : "We've locked unauthorized payee additions, stopped outgoing payments, and protected your balance."}
+                        </p>
+                      </>
+                    ) : isMoverConfirmed ? (
+                      <>
+                        <h3 className="font-serif font-bold text-base text-[#054F31]">
+                          {isEs ? 'Pago enviado, tomó 8 segundos' : 'Payment sent, took 8 seconds'}
+                        </h3>
+                        <p className="text-[11px] leading-relaxed text-[#067647]">
+                          {isEs
+                            ? 'Listo. Su pago está en camino. Gracias por confirmar.'
+                            : 'Done. Your payment is on its way. Thanks for confirming. This took 8 seconds.'}
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <h3 className="font-serif font-bold text-base text-[#054F31]">
+                          {isEs ? 'Pago procesado' : 'Payment processed'}
+                        </h3>
+                        <p className="text-[11px] leading-relaxed text-[#067647]">
+                          {isEs ? 'Su transacción ha sido enviada.' : 'Your transaction has been submitted.'}
+                        </p>
+                      </>
+                    )}
+
+                    <button
+                      onClick={() => {
+                        setActiveTab('home');
+                        setPayStep(1);
+                      }}
+                      className="w-full h-10 rounded-lg bg-[#067647] hover:bg-[#054F31] text-white font-semibold text-xs cursor-pointer transition-colors shadow-2xs"
+                    >
+                      {isEs ? 'Volver al Inicio' : 'Back to Home'}
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
@@ -616,6 +705,16 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
               ))}
             </div>
 
+            {/* Way Out */}
+            <div className="text-center pt-1">
+              <button
+                onClick={() => setActiveTab('home')}
+                className="text-xs text-[#0082CA] hover:underline cursor-pointer"
+              >
+                Return to Home
+              </button>
+            </div>
+
             {/* Selected Activity Item Modal / Detail */}
             {selectedActivityItem && (
               <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
@@ -624,7 +723,7 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
                     <strong className="text-[#002D72]">{selectedActivityItem.event_type}</strong>
                     <button
                       onClick={() => setSelectedActivityItem(null)}
-                      className="p-1 text-slate-400 hover:text-slate-600"
+                      className="p-1 text-slate-400 hover:text-slate-600 cursor-pointer"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -637,7 +736,7 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
                   </div>
                   <button
                     onClick={() => setSelectedActivityItem(null)}
-                    className="w-full h-9 rounded bg-[#002D72] text-white font-semibold text-xs"
+                    className="w-full h-9 rounded bg-[#002D72] text-white font-semibold text-xs cursor-pointer"
                   >
                     Close
                   </button>
@@ -677,7 +776,12 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
               <p className="text-[11px] text-[#5B6B7A]">
                 Direct line to Sound Credit Union Fraud Specialists:
               </p>
-              <div className="font-mono font-bold text-xs text-[#002D72]">800.562.8130</div>
+              <a
+                href="tel:8005628130"
+                className="font-mono font-bold text-xs text-[#0082CA] hover:underline block"
+              >
+                800.562.8130
+              </a>
             </div>
 
             {/* Visit a branch */}
@@ -698,6 +802,16 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
                 </button>
               )}
             </div>
+
+            {/* Way Out */}
+            <div className="text-center pt-1">
+              <button
+                onClick={() => setActiveTab('home')}
+                className="text-xs text-[#0082CA] hover:underline cursor-pointer"
+              >
+                Return to Home
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -715,7 +829,12 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
         </button>
 
         <button
-          onClick={() => setActiveTab('pay')}
+          onClick={() => {
+            setActiveTab('pay');
+            if (scenarioId !== 'james_branch') {
+              setPayStep(1);
+            }
+          }}
           className={`flex flex-col items-center gap-1 cursor-pointer transition-colors ${
             activeTab === 'pay' ? 'text-[#002D72] font-bold' : 'text-[#5B6B7A] hover:text-[#002D72]'
           }`}

@@ -34,6 +34,7 @@ import {
   FileText,
   AlertTriangle,
   UserCheck,
+  Home,
 } from 'lucide-react';
 
 interface StaffConsoleProps {
@@ -62,6 +63,8 @@ interface StaffConsoleProps {
   onJamesProceed: () => void;
   onTellerAskQuestion: () => void;
   onOpenScamReport: () => void;
+  onReturnToStories?: () => void;
+  initialTab?: 'dashboard' | 'cases' | 'branch' | 'evidence';
   lang: 'en' | 'es';
 }
 
@@ -91,10 +94,12 @@ export const StaffConsole: React.FC<StaffConsoleProps> = ({
   onJamesProceed,
   onTellerAskQuestion,
   onOpenScamReport,
+  onReturnToStories,
+  initialTab = 'dashboard',
   lang,
 }) => {
   const isEs = lang === 'es';
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'cases' | 'branch' | 'evidence'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'cases' | 'branch' | 'evidence'>(initialTab);
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
   const [caseSubTab, setCaseSubTab] = useState<'summary' | 'timeline' | 'actions' | 'audit'>('summary');
   const [caseFilter, setCaseFilter] = useState<'ALL' | 'QUARANTINE' | 'LIGHT' | 'BRANCH' | 'RESOLVED'>('ALL');
@@ -106,7 +111,7 @@ export const StaffConsole: React.FC<StaffConsoleProps> = ({
   const quickChecksCount = queueItems.filter((q) => q.tier === 'LIGHT').length;
   const dollarsProtected = queueItems
     .filter((q) => q.status !== 'RELEASED')
-    .reduce((sum, item) => sum + item.amount, 0) + (scenarioId === 'james_branch' ? 7000 : 0);
+    .reduce((sum, item) => sum + item.amount, 0);
   const branchPriorityCount = queueItems.filter((q) => q.branchPriority).length;
 
   // Filter queue items for Cases tab
@@ -122,7 +127,7 @@ export const StaffConsole: React.FC<StaffConsoleProps> = ({
 
   // Selected Case Object
   const activeCase = useMemo(() => {
-    return queueItems.find((q) => q.paymentId === selectedCaseId) || queueItems[0];
+    return queueItems.find((q) => q.paymentId === selectedCaseId) || queueItems[0] || {} as QueueItem;
   }, [queueItems, selectedCaseId]);
 
   return (
@@ -191,8 +196,19 @@ export const StaffConsole: React.FC<StaffConsoleProps> = ({
           </button>
         </div>
 
-        <div className="hidden md:flex items-center gap-2 pr-2 text-xs text-[#5B6B7A]">
-          <span>Analyst: <strong className="text-[#002D72]">E-4819 (Fraud Desk)</strong></span>
+        <div className="flex items-center gap-3 pr-2 text-xs">
+          {onReturnToStories && (
+            <button
+              onClick={onReturnToStories}
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#0082CA] hover:underline cursor-pointer"
+            >
+              <Home className="w-3 h-3" />
+              <span>Return to stories</span>
+            </button>
+          )}
+          <span className="hidden md:inline text-[#5B6B7A]">
+            Analyst: <strong className="text-[#002D72]">E-4819</strong>
+          </span>
         </div>
       </div>
 
@@ -465,7 +481,7 @@ export const StaffConsole: React.FC<StaffConsoleProps> = ({
                     caseSubTab === 'timeline' ? 'bg-[#002D72] text-white shadow-xs' : 'bg-white text-[#5B6B7A] hover:text-[#002D72]'
                   }`}
                 >
-                  Timeline (Flagged Events)
+                  Timeline ({activeCase.flaggedEvents?.length || 0})
                 </button>
                 <button
                   onClick={() => setCaseSubTab('actions')}
@@ -540,7 +556,7 @@ export const StaffConsole: React.FC<StaffConsoleProps> = ({
                     Observable causal chain of events triggering the rule:
                   </div>
                   <div className="border border-[#D0D9E2] rounded-xl divide-y divide-[#D0D9E2]">
-                    {activeCase.flaggedEvents.map((fe) => (
+                    {(activeCase.flaggedEvents || []).map((fe) => (
                       <div key={fe.id} className="p-3 flex items-center justify-between bg-white hover:bg-slate-50">
                         <div className="flex items-center gap-3">
                           <span className="font-mono text-slate-500 text-[11px]">{fe.time}</span>
@@ -568,7 +584,7 @@ export const StaffConsole: React.FC<StaffConsoleProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                     <button
                       onClick={onActionStopATO}
-                      className="p-3 rounded-xl bg-red-50 hover:bg-red-100 border border-red-300 text-red-900 font-semibold text-left flex items-start gap-2.5 cursor-pointer"
+                      className="p-3 rounded-xl bg-red-50 hover:bg-red-100 border border-red-300 text-red-900 font-semibold text-left flex items-start gap-2.5 cursor-pointer transition-colors"
                     >
                       <Lock className="w-4 h-4 text-red-700 shrink-0 mt-0.5" />
                       <div>
@@ -579,7 +595,7 @@ export const StaffConsole: React.FC<StaffConsoleProps> = ({
 
                     <button
                       onClick={() => setIsApprovalModalOpen(true)}
-                      className="p-3 rounded-xl bg-green-50 hover:bg-green-100 border border-green-300 text-green-900 font-semibold text-left flex items-start gap-2.5 cursor-pointer"
+                      className="p-3 rounded-xl bg-green-50 hover:bg-green-100 border border-green-300 text-green-900 font-semibold text-left flex items-start gap-2.5 cursor-pointer transition-colors"
                     >
                       <UserCheck className="w-4 h-4 text-green-700 shrink-0 mt-0.5" />
                       <div>
@@ -590,7 +606,7 @@ export const StaffConsole: React.FC<StaffConsoleProps> = ({
 
                     <button
                       onClick={onActionContactPreChangePhone}
-                      className="p-3 rounded-xl bg-sky-50 hover:bg-sky-100 border border-sky-300 text-sky-900 font-semibold text-left flex items-start gap-2.5 cursor-pointer"
+                      className="p-3 rounded-xl bg-sky-50 hover:bg-sky-100 border border-sky-300 text-sky-900 font-semibold text-left flex items-start gap-2.5 cursor-pointer transition-colors"
                     >
                       <PhoneCall className="w-4 h-4 text-sky-700 shrink-0 mt-0.5" />
                       <div>
@@ -601,7 +617,7 @@ export const StaffConsole: React.FC<StaffConsoleProps> = ({
 
                     <button
                       onClick={onActionCreateCase}
-                      className="p-3 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-300 text-slate-800 font-semibold text-left flex items-start gap-2.5 cursor-pointer"
+                      className="p-3 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-300 text-slate-800 font-semibold text-left flex items-start gap-2.5 cursor-pointer transition-colors"
                     >
                       <FileText className="w-4 h-4 text-slate-600 shrink-0 mt-0.5" />
                       <div>
@@ -713,8 +729,8 @@ export const StaffConsole: React.FC<StaffConsoleProps> = ({
           onActionReleaseQuarantine(app1, app2, rsn);
           setIsApprovalModalOpen(false);
         }}
-        amount={activeCase.amount}
-        paymentId={activeCase.paymentId}
+        amount={activeCase.amount || 1574.18}
+        paymentId={activeCase.paymentId || 'P1003-007'}
       />
     </div>
   );

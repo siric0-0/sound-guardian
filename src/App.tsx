@@ -38,6 +38,7 @@ import { WhyDrawer } from './components/WhyDrawer.tsx';
 import { AboutDataModal } from './components/AboutDataModal.tsx';
 import { ScamReportModal } from './components/MemberView/ScamReportModal.tsx';
 import { SCUFooter } from './components/SCUFooter.tsx';
+import { ErrorBoundary } from './components/ErrorBoundary.tsx';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 
 export default function App() {
@@ -55,6 +56,9 @@ export default function App() {
   // Phone App Internal Navigation Tabs: Home · Pay · Activity · Help
   const [activePhoneTab, setActivePhoneTab] = useState<'home' | 'pay' | 'activity' | 'help'>('home');
   const [payStep, setPayStep] = useState<1 | 2 | 3 | 4>(1);
+
+  // Staff Console Tab selection
+  const [staffInitialTab, setStaffInitialTab] = useState<'dashboard' | 'cases' | 'branch' | 'evidence'>('dashboard');
 
   // Technical Explainer Drawer (Closed by default)
   const [isWhyDrawerOpen, setIsWhyDrawerOpen] = useState(false);
@@ -428,9 +432,32 @@ export default function App() {
     setCurrentScreen('story_picker');
   };
 
-  // Staff queue items computed dynamically
+  // Staff queue items computed dynamically for all 3 personas
   const queueItems = useMemo<QueueItem[]>(() => {
     return [
+      {
+        paymentId: 'P1004-001',
+        memberId: 'M1004',
+        memberToken: tokenizeMemberId('M1004'),
+        amount: 7000.0,
+        rail: 'Cash',
+        tier: 'NONE',
+        reasonCode: 'IN_BRANCH_HIGH_RISK_CASH_WITHDRAWAL',
+        reasonPlain: 'High-risk in-branch cash withdrawal attempt under active imposter coercion',
+        timeLeft: 'In branch now',
+        isAfterHours: false,
+        isNextBusinessHours: false,
+        branchPriority: true,
+        existingRiskScore: 35,
+        flaggedEvents: [
+          { id: 'E1004-001', time: '11:30', type: 'Member Inquiry', detail: 'Inquired on daily cash limits & wire speed' },
+          { id: 'E1004-002', time: '16:17', type: 'Payment Initiated', detail: 'In-branch $7,000 cash withdrawal attempt' },
+        ],
+        status: session.memberActions.cancelledJames || session.staffActions.stoppedPayments.includes('P1004-001')
+          ? 'STOPPED'
+          : 'HELD',
+        timestamp: '2026-10-15 16:17:00',
+      },
       {
         paymentId: 'P1003-007',
         memberId: 'M1003',
@@ -507,7 +534,7 @@ export default function App() {
         timestamp: '2026-10-06 09:20:00',
       },
     ];
-  }, [session.staffActions, session.memberActions.branchPriority]);
+  }, [session.staffActions, session.memberActions.branchPriority, session.memberActions.cancelledJames]);
 
   if (csvLoading) {
     return (
@@ -544,204 +571,218 @@ export default function App() {
   }
 
   return (
-    <div
-      className={`min-h-screen bg-[#F4F8FA] text-[#1B2733] flex flex-col ${
-        session.largeText ? 'text-[120%]' : ''
-      }`}
+    <ErrorBoundary
+      fallbackTitle="Sound Guardian Encountered an Issue"
+      onReset={handleResetDemo}
+      onReturnToStories={() => setCurrentScreen('story_picker')}
     >
-      {/* Slim Global Top Bar: "Sound Guardian" | Segmented toggle | EN/ES | Large text | AI pill */}
-      <TopBar
-        viewMode={session.viewMode}
-        setViewMode={(m) => setSession((prev) => ({ ...prev, viewMode: m }))}
-        lang={session.lang}
-        setLang={(l) => setSession((prev) => ({ ...prev, lang: l }))}
-        largeText={session.largeText}
-        setLargeText={(b) => setSession((prev) => ({ ...prev, largeText: b }))}
-        aiStatus={aiStatus}
-        onChooseStory={() => setCurrentScreen('story_picker')}
-        onResetDemo={handleResetDemo}
-        onOpenAbout={() => setIsAboutOpen(true)}
-      />
+      <div
+        className={`min-h-screen bg-[#F4F8FA] text-[#1B2733] flex flex-col ${
+          session.largeText ? 'text-[120%]' : ''
+        }`}
+      >
+        {/* Slim Global Top Bar: "Sound Guardian" | Segmented toggle | EN/ES | Large text | AI pill */}
+        <TopBar
+          viewMode={session.viewMode}
+          setViewMode={(m) => setSession((prev) => ({ ...prev, viewMode: m }))}
+          lang={session.lang}
+          setLang={(l) => setSession((prev) => ({ ...prev, lang: l }))}
+          largeText={session.largeText}
+          setLargeText={(b) => setSession((prev) => ({ ...prev, largeText: b }))}
+          aiStatus={aiStatus}
+          onChooseStory={() => setCurrentScreen('story_picker')}
+          onResetDemo={handleResetDemo}
+          onOpenAbout={() => setIsAboutOpen(true)}
+        />
 
-      {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-4 flex flex-col justify-start">
-        {/* ================= SCREEN 1: CHOOSE A STORY (START SCREEN) ================= */}
-        {currentScreen === 'story_picker' ? (
-          <ChooseStoryScreen
-            onSelectAndStart={(id) => {
-              setSession((prev) => ({
-                ...prev,
-                scenarioId: id,
-                stepIndex: 0,
-              }));
-              setActivePhoneTab('home');
-              setPayStep(1);
-              setCurrentScreen('app');
-            }}
-            onResetDemo={handleResetDemo}
+        {/* Main Content Area */}
+        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-4 flex flex-col justify-start">
+          {/* ================= SCREEN 1: CHOOSE A STORY (START SCREEN) ================= */}
+          {currentScreen === 'story_picker' ? (
+            <ChooseStoryScreen
+              onSelectAndStart={(id) => {
+                setSession((prev) => ({
+                  ...prev,
+                  scenarioId: id,
+                  stepIndex: 0,
+                }));
+                setActivePhoneTab('home');
+                setPayStep(1);
+                setCurrentScreen('app');
+              }}
+              onResetDemo={handleResetDemo}
+              lang={session.lang}
+            />
+          ) : (
+            /* ================= SCREEN 2: APPLICATION MAIN FLOW ================= */
+            <div className="flex-1 flex flex-col justify-start">
+              {session.viewMode === 'member' ? (
+                /* MEMBER APP: Phone-sized frame with bottom tabs + Guided story bar */
+                <div className="flex flex-col items-center justify-center py-2 animate-in fade-in duration-150">
+                  <PhoneApp
+                    scenarioId={session.scenarioId}
+                    events={memberEvents}
+                    currentEvent={currentEvent}
+                    decision={currentDecision}
+                    signals={currentSignals}
+                    lang={session.lang}
+                    largeText={session.largeText}
+                    memberActions={session.memberActions}
+                    onFreezeAndRecover={handleFreezeAndRecover}
+                    onConfirmLegitimate={handleConfirmLegitimate}
+                    onConfirmMoverYes={handleConfirmMoverYes}
+                    onConfirmMoverNo={handleConfirmMoverNo}
+                    onOpenScamModal={() => setIsScamModalOpen(true)}
+                    onRequestAtBranch={handleRequestAtBranch}
+                    onRequestFastPath={() =>
+                      setSession((prev) => ({
+                        ...prev,
+                        memberActions: {
+                          ...prev.memberActions,
+                          fastPathRequested: !prev.memberActions.fastPathRequested,
+                        },
+                      }))
+                    }
+                    onSwitchToStaffConsole={(tab) => {
+                      setSession((prev) => ({ ...prev, viewMode: 'staff' }));
+                      if (tab) setStaffInitialTab(tab);
+                    }}
+                    onReturnToStories={() => setCurrentScreen('story_picker')}
+                    activeTab={activePhoneTab}
+                    setActiveTab={setActivePhoneTab}
+                    payStep={payStep}
+                    setPayStep={setPayStep}
+                  />
+
+                  {/* Guided story mode bar under the phone */}
+                  <GuidedStoryBar
+                    currentIndex={session.stepIndex}
+                    totalSteps={memberEvents.length}
+                    eventTitle={currentEvent.event_type || 'Event'}
+                    canPrev={session.stepIndex > 0}
+                    canNext={session.stepIndex < memberEvents.length - 1}
+                    onPrev={() =>
+                      setSession((prev) => ({
+                        ...prev,
+                        stepIndex: Math.max(0, prev.stepIndex - 1),
+                      }))
+                    }
+                    onNext={() =>
+                      setSession((prev) => ({
+                        ...prev,
+                        stepIndex: Math.min(memberEvents.length - 1, prev.stepIndex + 1),
+                      }))
+                    }
+                    onReturnToStories={() => setCurrentScreen('story_picker')}
+                    lang={session.lang}
+                  />
+                </div>
+              ) : (
+                /* STAFF CONSOLE: Dashboard · Cases · Branch mode · Evidence & Data */
+                <div className="animate-in fade-in duration-150 pb-8">
+                  <StaffConsole
+                    queueItems={queueItems}
+                    allEvents={allEvents}
+                    currentEvent={currentEvent}
+                    decision={currentDecision}
+                    signals={currentSignals}
+                    staffAssist={staffAssist}
+                    isLoadingAi={isLoadingAi}
+                    onRefreshAi={triggerAiGenerations}
+                    auditLog={session.auditLog}
+                    onActionStopATO={handleStaffStopATO}
+                    onActionReleaseQuarantine={handleStaffReleaseWithDualApproval}
+                    onActionContactPreChangePhone={handleStaffContactPreChangePhone}
+                    onActionCreateCase={handleStaffCreateCase}
+                    onActionRequestRecall={handleStaffRequestRecall}
+                    onAddAssistedNote={handleAddAssistedNote}
+                    isStopped={session.staffActions.stoppedPayments.includes(
+                      currentEvent.payment_id || 'P1003-007'
+                    )}
+                    isReleased={session.staffActions.releasedPayments.includes(
+                      currentEvent.payment_id || 'P1003-007'
+                    )}
+                    isCaseCreated={session.staffActions.createdCases.includes('C-2026-1003')}
+                    isRecallRequested={session.staffActions.recallRequested.includes(
+                      currentEvent.payment_id || 'P1003-007'
+                    )}
+                    scenarioId={session.scenarioId}
+                    isJamesCancelled={!!session.memberActions.cancelledJames}
+                    onJamesCancelWithdrawal={handleJamesCancelWithdrawal}
+                    onJamesProceed={() =>
+                      addAuditEntry(
+                        'Member Overrode Inquiry',
+                        'Tacoma Branch Teller #3',
+                        'Member insisted on cash withdrawal despite teller inquiry.'
+                      )
+                    }
+                    onTellerAskQuestion={() =>
+                      addAuditEntry(
+                        'Teller Security Question Posed',
+                        'Tacoma Branch Teller #3',
+                        'Teller asked: "Has anyone told you to keep this secret or to stay on the phone?"'
+                      )
+                    }
+                    onOpenScamReport={() => setIsScamModalOpen(true)}
+                    onReturnToStories={() => setCurrentScreen('story_picker')}
+                    initialTab={staffInitialTab}
+                    lang={session.lang}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+        </main>
+
+        {/* Collapsible "Why did this happen?" Drawer (Closed by default) */}
+        {currentScreen === 'app' && (
+          <WhyDrawer
+            currentEvent={currentEvent}
+            signals={currentSignals}
+            decision={currentDecision}
+            isOpen={isWhyDrawerOpen}
+            onToggle={() => setIsWhyDrawerOpen(!isWhyDrawerOpen)}
             lang={session.lang}
           />
-        ) : (
-          /* ================= SCREEN 2: APPLICATION MAIN FLOW ================= */
-          <div className="flex-1 flex flex-col justify-start">
-            {session.viewMode === 'member' ? (
-              /* MEMBER APP: Phone-sized frame with bottom tabs + Guided story bar */
-              <div className="flex flex-col items-center justify-center py-2 animate-in fade-in duration-150">
-                <PhoneApp
-                  scenarioId={session.scenarioId}
-                  events={memberEvents}
-                  currentEvent={currentEvent}
-                  decision={currentDecision}
-                  signals={currentSignals}
-                  lang={session.lang}
-                  largeText={session.largeText}
-                  memberActions={session.memberActions}
-                  onFreezeAndRecover={handleFreezeAndRecover}
-                  onConfirmLegitimate={handleConfirmLegitimate}
-                  onConfirmMoverYes={handleConfirmMoverYes}
-                  onConfirmMoverNo={handleConfirmMoverNo}
-                  onOpenScamModal={() => setIsScamModalOpen(true)}
-                  onRequestAtBranch={handleRequestAtBranch}
-                  onRequestFastPath={() =>
-                    setSession((prev) => ({
-                      ...prev,
-                      memberActions: {
-                        ...prev.memberActions,
-                        fastPathRequested: !prev.memberActions.fastPathRequested,
-                      },
-                    }))
-                  }
-                  activeTab={activePhoneTab}
-                  setActiveTab={setActivePhoneTab}
-                  payStep={payStep}
-                  setPayStep={setPayStep}
-                />
-
-                {/* Guided story mode bar under the phone */}
-                <GuidedStoryBar
-                  currentIndex={session.stepIndex}
-                  totalSteps={memberEvents.length}
-                  eventTitle={currentEvent.event_type || 'Event'}
-                  canPrev={session.stepIndex > 0}
-                  canNext={session.stepIndex < memberEvents.length - 1}
-                  onPrev={() =>
-                    setSession((prev) => ({
-                      ...prev,
-                      stepIndex: Math.max(0, prev.stepIndex - 1),
-                    }))
-                  }
-                  onNext={() =>
-                    setSession((prev) => ({
-                      ...prev,
-                      stepIndex: Math.min(memberEvents.length - 1, prev.stepIndex + 1),
-                    }))
-                  }
-                  lang={session.lang}
-                />
-              </div>
-            ) : (
-              /* STAFF CONSOLE: Dashboard · Cases · Branch mode · Evidence & Data */
-              <div className="animate-in fade-in duration-150 pb-8">
-                <StaffConsole
-                  queueItems={queueItems}
-                  allEvents={allEvents}
-                  currentEvent={currentEvent}
-                  decision={currentDecision}
-                  signals={currentSignals}
-                  staffAssist={staffAssist}
-                  isLoadingAi={isLoadingAi}
-                  onRefreshAi={triggerAiGenerations}
-                  auditLog={session.auditLog}
-                  onActionStopATO={handleStaffStopATO}
-                  onActionReleaseQuarantine={handleStaffReleaseWithDualApproval}
-                  onActionContactPreChangePhone={handleStaffContactPreChangePhone}
-                  onActionCreateCase={handleStaffCreateCase}
-                  onActionRequestRecall={handleStaffRequestRecall}
-                  onAddAssistedNote={handleAddAssistedNote}
-                  isStopped={session.staffActions.stoppedPayments.includes(
-                    currentEvent.payment_id || 'P1003-007'
-                  )}
-                  isReleased={session.staffActions.releasedPayments.includes(
-                    currentEvent.payment_id || 'P1003-007'
-                  )}
-                  isCaseCreated={session.staffActions.createdCases.includes('C-2026-1003')}
-                  isRecallRequested={session.staffActions.recallRequested.includes(
-                    currentEvent.payment_id || 'P1003-007'
-                  )}
-                  scenarioId={session.scenarioId}
-                  isJamesCancelled={!!session.memberActions.cancelledJames}
-                  onJamesCancelWithdrawal={handleJamesCancelWithdrawal}
-                  onJamesProceed={() =>
-                    addAuditEntry(
-                      'Member Overrode Inquiry',
-                      'Tacoma Branch Teller #3',
-                      'Member insisted on cash withdrawal despite teller inquiry.'
-                    )
-                  }
-                  onTellerAskQuestion={() =>
-                    addAuditEntry(
-                      'Teller Security Question Posed',
-                      'Tacoma Branch Teller #3',
-                      'Teller asked: "Has anyone told you to keep this secret or to stay on the phone?"'
-                    )
-                  }
-                  onOpenScamReport={() => setIsScamModalOpen(true)}
-                  lang={session.lang}
-                />
-              </div>
-            )}
-          </div>
         )}
-      </main>
 
-      {/* Collapsible "Why did this happen?" Drawer (Closed by default) */}
-      {currentScreen === 'app' && (
-        <WhyDrawer
-          currentEvent={currentEvent}
-          signals={currentSignals}
-          decision={currentDecision}
-          isOpen={isWhyDrawerOpen}
-          onToggle={() => setIsWhyDrawerOpen(!isWhyDrawerOpen)}
-          lang={session.lang}
+        {/* Slim Authentic SCU Footer */}
+        <SCUFooter onOpenAbout={() => setIsAboutOpen(true)} />
+
+        {/* Modals */}
+        <AboutDataModal
+          isOpen={isAboutOpen}
+          onClose={() => setIsAboutOpen(false)}
         />
-      )}
 
-      {/* Slim Authentic SCU Footer */}
-      <SCUFooter onOpenAbout={() => setIsAboutOpen(true)} />
-
-      {/* Modals */}
-      <AboutDataModal
-        isOpen={isAboutOpen}
-        onClose={() => setIsAboutOpen(false)}
-      />
-
-      <ScamReportModal
-        isOpen={isScamModalOpen}
-        onClose={() => setIsScamModalOpen(false)}
-        lang={session.lang}
-        onSubmitReport={({ description, rail, amount }) => {
-          setSession((prev) => ({
-            ...prev,
-            memberActions: {
-              ...prev.memberActions,
-              scamReported: true,
-              frozen: true,
-            },
-            staffActions: {
-              ...prev.staffActions,
-              createdCases: [...prev.staffActions.createdCases, 'C-2026-EMERGENCY'],
-              recallRequested: [...prev.staffActions.recallRequested, 'RECALL-EMERGENCY'],
-            },
-          }));
-          addAuditEntry(
-            'Emergency Scam Report Submitted',
-            'Member Self-Service',
-            `Member reported scam: ${description || 'Unspecified'}. Rail: ${rail}, Amount: $${amount || '0'}. Rails frozen, recall dispatched, callback scheduled.`
-          );
-        }}
-        isReported={!!session.memberActions.scamReported}
-        caseId="C-2026-9812"
-      />
-    </div>
+        <ScamReportModal
+          isOpen={isScamModalOpen}
+          onClose={() => setIsScamModalOpen(false)}
+          lang={session.lang}
+          onSubmitReport={({ description, rail, amount }) => {
+            setSession((prev) => ({
+              ...prev,
+              memberActions: {
+                ...prev.memberActions,
+                scamReported: true,
+                frozen: true,
+              },
+              staffActions: {
+                ...prev.staffActions,
+                createdCases: [...prev.staffActions.createdCases, 'C-2026-EMERGENCY'],
+                recallRequested: [...prev.staffActions.recallRequested, 'RECALL-EMERGENCY'],
+              },
+            }));
+            addAuditEntry(
+              'Emergency Scam Report Submitted',
+              'Member Self-Service',
+              `Member reported scam: ${description || 'Unspecified'}. Rail: ${rail}, Amount: $${amount || '0'}. Rails frozen, recall dispatched, callback scheduled.`
+            );
+          }}
+          isReported={!!session.memberActions.scamReported}
+          caseId="C-2026-9812"
+        />
+      </div>
+    </ErrorBoundary>
   );
 }
