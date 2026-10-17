@@ -28,21 +28,22 @@ import {
 import { tokenizeMemberId, maskPhone } from './lib/tokenization.ts';
 
 import { TopBar } from './components/TopBar.tsx';
-import { ScenarioPicker, SCENARIOS } from './components/ScenarioPicker.tsx';
-import { JourneyTimeline } from './components/JourneyTimeline.tsx';
-import { ComparisonCallout } from './components/ComparisonCallout.tsx';
-import { EvidencePanel } from './components/EvidencePanel.tsx';
-import { AccountHome } from './components/MemberView/AccountHome.tsx';
-import { ScamReportModal } from './components/MemberView/ScamReportModal.tsx';
-import { MetricsStrip } from './components/StaffView/MetricsStrip.tsx';
-import { StaffQueue, QueueItem } from './components/StaffView/StaffQueue.tsx';
-import { CaseDetail } from './components/StaffView/CaseDetail.tsx';
-import { BranchMode } from './components/StaffView/BranchMode.tsx';
+import { SCENARIOS } from './components/ScenarioPicker.tsx';
+import { ChooseStoryScreen } from './components/ChooseStoryScreen.tsx';
+import { PhoneApp } from './components/MemberView/PhoneApp.tsx';
+import { GuidedStoryBar } from './components/MemberView/GuidedStoryBar.tsx';
+import { StaffConsole } from './components/StaffView/StaffConsole.tsx';
+import { QueueItem } from './components/StaffView/StaffQueue.tsx';
+import { WhyDrawer } from './components/WhyDrawer.tsx';
 import { AboutDataModal } from './components/AboutDataModal.tsx';
+import { ScamReportModal } from './components/MemberView/ScamReportModal.tsx';
 import { SCUFooter } from './components/SCUFooter.tsx';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 
 export default function App() {
+  // Screen mode: Start on 'story_picker' per user request, then transition to 'app'
+  const [currentScreen, setCurrentScreen] = useState<'story_picker' | 'app'>('story_picker');
+
   // Master Event List from CSV
   const [allEvents, setAllEvents] = useState<DemoEvent[]>([]);
   const [csvLoading, setCsvLoading] = useState(true);
@@ -51,7 +52,18 @@ export default function App() {
   // Orchestrator Persistent Session State
   const [session, setSession] = useState<OrchestratorState>(() => loadSavedState());
 
-  // AI Service Status
+  // Phone App Internal Navigation Tabs: Home · Pay · Activity · Help
+  const [activePhoneTab, setActivePhoneTab] = useState<'home' | 'pay' | 'activity' | 'help'>('home');
+  const [payStep, setPayStep] = useState<1 | 2 | 3 | 4>(1);
+
+  // Technical Explainer Drawer (Closed by default)
+  const [isWhyDrawerOpen, setIsWhyDrawerOpen] = useState(false);
+
+  // Modals
+  const [isAboutOpen, setIsAboutOpen] = useState(false);
+  const [isScamModalOpen, setIsScamModalOpen] = useState(false);
+
+  // AI Service Status & Cache
   const [aiStatus, setAiStatus] = useState<{
     aiStatus: 'live' | 'offline';
     provider: string;
@@ -61,18 +73,6 @@ export default function App() {
     provider: 'none',
     model: 'deterministic_templates',
   });
-
-  // Replay Controls
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [speed, setSpeed] = useState(1);
-
-  // Modals & Panels
-  const [isAboutOpen, setIsAboutOpen] = useState(false);
-  const [isScamModalOpen, setIsScamModalOpen] = useState(false);
-  const [isBranchConsoleTab, setIsBranchConsoleTab] = useState(false);
-  const [showEvidence, setShowEvidence] = useState(true);
-
-  // AI Content State
   const [staffAssist, setStaffAssist] = useState<StaffAssistResponse | null>(null);
   const [guardianCopy, setGuardianCopy] = useState<GuardianExplainResponse | null>(null);
   const [isLoadingAi, setIsLoadingAi] = useState(false);
@@ -99,13 +99,12 @@ export default function App() {
     saveState(session);
   }, [session]);
 
-  // Filter events for the current active scenario
+  // Active scenario definition
   const scenarioDef = useMemo(() => {
-    return (
-      SCENARIOS.find((s) => s.id === session.scenarioId) || SCENARIOS[0]
-    );
+    return SCENARIOS.find((s) => s.id === session.scenarioId) || SCENARIOS[0];
   }, [session.scenarioId]);
 
+  // Events filtered and sorted for active member
   const memberEvents = useMemo(() => {
     if (!allEvents.length) return [];
     return allEvents
@@ -120,7 +119,7 @@ export default function App() {
     return memberEvents[session.stepIndex] || memberEvents[0];
   }, [memberEvents, session.stepIndex]);
 
-  // Compute Sentry Signals strictly on payee enrollment and outgoing payment events
+  // Sentry Signals Engine (strictly deterministic)
   const currentSignals = useMemo<SentrySignals | null>(() => {
     if (!currentEvent || !currentEvent.event_type) return null;
     const isTargetEvent =
@@ -136,7 +135,7 @@ export default function App() {
     return signals;
   }, [currentEvent, memberEvents]);
 
-  // Deterministic Arbiter rules engine (No LLM in decision)
+  // Arbiter Decision Engine (strictly deterministic)
   const currentDecision = useMemo<ArbiterDecision | null>(() => {
     if (!currentSignals) return null;
     const decision = runArbiter(currentSignals);
@@ -146,6 +145,22 @@ export default function App() {
     }
     return decision;
   }, [currentSignals]);
+
+  // Sync phone tab and step whenever currentEvent changes (guided story mode)
+  useEffect(() => {
+    if (!currentEvent || !currentEvent.event_type) return;
+
+    if (currentEvent.event_type === 'Recipient Added') {
+      setActivePhoneTab('pay');
+      setPayStep(1); // Payee step
+    } else if (currentEvent.event_type === 'Payment Initiated') {
+      setActivePhoneTab('pay');
+      setPayStep(3); // Review & Protection Screen
+    } else if (currentEvent.event_type === 'Payment Cancelled') {
+      setActivePhoneTab('pay');
+      setPayStep(4); // Outcome
+    }
+  }, [currentEvent.event_id, currentEvent.event_type]);
 
   // Fetch AI copy when payment/tier or payee enrollment is active
   const triggerAiGenerations = useCallback(async () => {
@@ -203,7 +218,7 @@ export default function App() {
     }
   }, [currentEvent.event_id, currentEvent.event_type, triggerAiGenerations]);
 
-  // Add an entry to the immutable audit trail
+  // Audit trail helper
   const addAuditEntry = (action: string, who: string, reason: string) => {
     const newEntry: AuditEntry = {
       id: `AUD-${Date.now()}`,
@@ -219,7 +234,7 @@ export default function App() {
     }));
   };
 
-  // Actions for Sarah ATO
+  // Action Handlers
   const handleFreezeAndRecover = () => {
     setSession((prev) => ({
       ...prev,
@@ -232,7 +247,7 @@ export default function App() {
     }));
     addAuditEntry(
       'Account Frozen & Stop (ATO) Applied',
-      'Member (Pre-Change Phone Verification)',
+      'Member (Pre-Change Phone Check)',
       'Member confirmed unapproved credentials change and requested immediate rail freeze.'
     );
   };
@@ -253,7 +268,6 @@ export default function App() {
     );
   };
 
-  // Actions for M1039 Mover
   const handleConfirmMoverYes = () => {
     setSession((prev) => ({
       ...prev,
@@ -286,7 +300,6 @@ export default function App() {
     );
   };
 
-  // Actions for James M1004
   const handleJamesCancelWithdrawal = () => {
     setSession((prev) => ({
       ...prev,
@@ -303,7 +316,6 @@ export default function App() {
     );
   };
 
-  // Staff Action Handlers
   const handleStaffStopATO = () => {
     setSession((prev) => ({
       ...prev,
@@ -378,27 +390,7 @@ export default function App() {
   };
 
   const handleAddAssistedNote = (text: string) => {
-    const newNote: AssistedNote = {
-      id: `NOTE-${Date.now()}`,
-      author: 'E-4819 (Fraud Analyst)',
-      channel: 'Console',
-      timestamp: new Date().toLocaleTimeString(),
-      text,
-    };
-    setSession((prev) => ({
-      ...prev,
-      auditLog: [
-        {
-          id: `AUD-${Date.now()}`,
-          timestamp: new Date().toLocaleTimeString(),
-          who: 'E-4819 (Fraud Analyst)',
-          what: 'AssistedNote Added',
-          reason: text,
-          payment_id: currentEvent.payment_id || 'P1003-007',
-        },
-        ...prev.auditLog,
-      ],
-    }));
+    addAuditEntry('AssistedNote Added', 'E-4819 (Fraud Analyst)', text);
   };
 
   const handleRequestAtBranch = () => {
@@ -413,7 +405,6 @@ export default function App() {
     );
   };
 
-  // Reset Demo handler
   const handleResetDemo = () => {
     clearSavedState();
     setSession({
@@ -432,10 +423,12 @@ export default function App() {
       auditLog: [],
       validationErrors: [],
     });
-    setIsPlaying(false);
+    setActivePhoneTab('home');
+    setPayStep(1);
+    setCurrentScreen('story_picker');
   };
 
-  // Dynamic Queue Items for Staff Queue
+  // Staff queue items computed dynamically
   const queueItems = useMemo<QueueItem[]>(() => {
     return [
       {
@@ -448,7 +441,7 @@ export default function App() {
         reasonCode: 'RESET_PLUS_EMAIL_PHONE_CHANGE_NEW_PAYEE',
         reasonPlain: 'Password reset + Email/Phone change + New Payee (enrolled 22:19)',
         timeLeft: '3h 38m',
-        isAfterHours: true, // 10:22 PM is after 8 PM
+        isAfterHours: true,
         isNextBusinessHours: true,
         branchPriority: !!session.memberActions.branchPriority,
         existingRiskScore: 84,
@@ -516,12 +509,6 @@ export default function App() {
     ];
   }, [session.staffActions, session.memberActions.branchPriority]);
 
-  // Compute metrics dynamically from queue & replay
-  const heldCount = queueItems.filter((q) => q.status === 'HELD').length;
-  const dollarsPaused = queueItems
-    .filter((q) => q.status !== 'RELEASED')
-    .reduce((sum, item) => sum + item.amount, 0);
-
   if (csvLoading) {
     return (
       <div className="min-h-screen bg-[#F4F8FA] flex items-center justify-center p-4">
@@ -531,7 +518,7 @@ export default function App() {
             Loading Sound Guardian Engine...
           </h2>
           <p className="text-xs text-[#5B6B7A]">
-            Parsing synthetic event stream & initializing deterministic Arbiter
+            Initializing deterministic Arbiter & parsing event dataset
           </p>
         </div>
       </div>
@@ -562,7 +549,7 @@ export default function App() {
         session.largeText ? 'text-[120%]' : ''
       }`}
     >
-      {/* Top Bar with Wordmark, Toggles, and AI status */}
+      {/* Slim Global Top Bar: "Sound Guardian" | Segmented toggle | EN/ES | Large text | AI pill */}
       <TopBar
         viewMode={session.viewMode}
         setViewMode={(m) => setSession((prev) => ({ ...prev, viewMode: m }))}
@@ -571,203 +558,106 @@ export default function App() {
         largeText={session.largeText}
         setLargeText={(b) => setSession((prev) => ({ ...prev, largeText: b }))}
         aiStatus={aiStatus}
+        onChooseStory={() => setCurrentScreen('story_picker')}
+        onResetDemo={handleResetDemo}
         onOpenAbout={() => setIsAboutOpen(true)}
-        onOpenHelp={() => setIsAboutOpen(true)}
-        memberToken={tokenizeMemberId(scenarioDef.memberId)}
-        showEvidence={showEvidence}
-        onToggleEvidence={() => setShowEvidence((prev) => !prev)}
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Scenario Picker */}
-        <ScenarioPicker
-          currentScenarioId={session.scenarioId}
-          onSelectScenario={(id) => {
-            setSession((prev) => ({
-              ...prev,
-              scenarioId: id,
-              stepIndex: 0,
-            }));
-            setIsPlaying(false);
-          }}
-          onResetDemo={handleResetDemo}
-        />
-
-        {/* Evidence Panel (Sound Team Feedback: 12/12 ATO caught, 0/104 false positives) */}
-        {showEvidence && (
-          <EvidencePanel
-            isOpen={showEvidence}
-            onClose={() => setShowEvidence(false)}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-4 flex flex-col justify-start">
+        {/* ================= SCREEN 1: CHOOSE A STORY (START SCREEN) ================= */}
+        {currentScreen === 'story_picker' ? (
+          <ChooseStoryScreen
+            onSelectAndStart={(id) => {
+              setSession((prev) => ({
+                ...prev,
+                scenarioId: id,
+                stepIndex: 0,
+              }));
+              setActivePhoneTab('home');
+              setPayStep(1);
+              setCurrentScreen('app');
+            }}
+            onResetDemo={handleResetDemo}
+            lang={session.lang}
           />
-        )}
-
-        {/* Outcome Impact Callout (Illustration comparison) */}
-        <ComparisonCallout
-          originalOutcome={scenarioDef.originalOutcome}
-          guardianOutcome={scenarioDef.guardianOutcome}
-          dollarsAtRisk={session.scenarioId === 'sarah_ato' ? 3006.33 : session.scenarioId === 'james_branch' ? 7000.0 : 0}
-          dollarsSaved={session.scenarioId === 'sarah_ato' ? 3006.33 : session.scenarioId === 'james_branch' ? 7000.0 : 4151.68}
-        />
-
-        {/* Journey Timeline Replay Engine with embedded StepExplainer */}
-        <JourneyTimeline
-          events={memberEvents}
-          currentIndex={session.stepIndex}
-          onSelectIndex={(idx) =>
-            setSession((prev) => ({ ...prev, stepIndex: idx }))
-          }
-          isPlaying={isPlaying}
-          setIsPlaying={setIsPlaying}
-          speed={speed}
-          setSpeed={setSpeed}
-          currentSignals={currentSignals}
-          currentDecision={currentDecision}
-          scenarioId={session.scenarioId}
-        />
-
-        {/* Dynamic View Body */}
-        {session.viewMode === 'member' ? (
-          /* Member View: Sound Digital Banking */
-          <div className="animate-in fade-in duration-150">
-            <AccountHome
-              scenarioId={session.scenarioId}
-              events={memberEvents}
-              currentEvent={currentEvent}
-              decision={currentDecision}
-              signals={currentSignals}
-              lang={session.lang}
-              largeText={session.largeText}
-              memberActions={session.memberActions}
-              onFreezeAndRecover={handleFreezeAndRecover}
-              onConfirmLegitimate={handleConfirmLegitimate}
-              onConfirmMoverYes={handleConfirmMoverYes}
-              onConfirmMoverNo={handleConfirmMoverNo}
-              onRequestHelp={() => setIsScamModalOpen(true)}
-              onOpenScamModal={() => setIsScamModalOpen(true)}
-              onRequestAtBranch={handleRequestAtBranch}
-              onRequestFastPath={() =>
-                setSession((prev) => ({
-                  ...prev,
-                  memberActions: {
-                    ...prev.memberActions,
-                    fastPathRequested: !prev.memberActions.fastPathRequested,
-                  },
-                }))
-              }
-            />
-          </div>
         ) : (
-          /* Staff View: Fraud & Branch Console */
-          <div className="space-y-6 animate-in fade-in duration-150">
-            {/* Operational Metrics Strip */}
-            <MetricsStrip
-              allEvents={allEvents}
-              heldCount={heldCount}
-              dollarsPaused={dollarsPaused}
-            />
-
-            {/* If in James Scenario, toggle between Queue or Branch Mode */}
-            {session.scenarioId === 'james_branch' && (
-              <div className="bg-white p-3 rounded-xl border border-[#D0D9E2] flex items-center justify-between">
-                <span className="text-xs font-semibold text-[#002D72]">
-                  Viewing Imposter Scam Scenario (James M1004)
-                </span>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setIsBranchConsoleTab(false)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer ${
-                      !isBranchConsoleTab
-                        ? 'bg-[#002D72] text-white'
-                        : 'bg-[#F4F8FA] border border-[#D0D9E2] text-[#1B2733]'
-                    }`}
-                  >
-                    Fraud Queue View
-                  </button>
-                  <button
-                    onClick={() => setIsBranchConsoleTab(true)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer ${
-                      isBranchConsoleTab
-                        ? 'bg-[#002D72] text-white'
-                        : 'bg-[#F4F8FA] border border-[#D0D9E2] text-[#1B2733]'
-                    }`}
-                  >
-                    Branch Teller In-Person Mode
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {isBranchConsoleTab && session.scenarioId === 'james_branch' ? (
-              <BranchMode
-                memberId={scenarioDef.memberId}
-                isCancelled={!!session.memberActions.cancelledJames}
-                onTellerAskQuestion={() =>
-                  addAuditEntry(
-                    'Teller Security Question Posed',
-                    'Tacoma Branch Teller #3',
-                    'Teller asked: "Has anyone told you to keep this secret or to stay on the phone?"'
-                  )
-                }
-                onMemberCancelWithdrawal={handleJamesCancelWithdrawal}
-                onMemberProceed={() =>
-                  addAuditEntry(
-                    'Member Overrode Inquiry',
-                    'Tacoma Branch Teller #3',
-                    'Member insisted on cash withdrawal despite teller inquiry.'
-                  )
-                }
-                onOpenScamReport={() => setIsScamModalOpen(true)}
-              />
-            ) : (
-              <>
-                {/* Staff Queue */}
-                <StaffQueue
-                  queueItems={queueItems}
-                  selectedPaymentId={currentEvent.payment_id || 'P1003-007'}
-                  onSelectPayment={(pid) => {
-                    // Jump to that event step
-                    const matchIdx = memberEvents.findIndex(
-                      (e) => e.payment_id === pid
-                    );
-                    if (matchIdx >= 0) {
-                      setSession((prev) => ({ ...prev, stepIndex: matchIdx }));
-                    }
-                  }}
-                />
-
-                {/* Case Detail Terminal */}
-                <CaseDetail
+          /* ================= SCREEN 2: APPLICATION MAIN FLOW ================= */
+          <div className="flex-1 flex flex-col justify-start">
+            {session.viewMode === 'member' ? (
+              /* MEMBER APP: Phone-sized frame with bottom tabs + Guided story bar */
+              <div className="flex flex-col items-center justify-center py-2 animate-in fade-in duration-150">
+                <PhoneApp
+                  scenarioId={session.scenarioId}
+                  events={memberEvents}
                   currentEvent={currentEvent}
                   decision={currentDecision}
                   signals={currentSignals}
-                  allMemberEvents={memberEvents}
+                  lang={session.lang}
+                  largeText={session.largeText}
+                  memberActions={session.memberActions}
+                  onFreezeAndRecover={handleFreezeAndRecover}
+                  onConfirmLegitimate={handleConfirmLegitimate}
+                  onConfirmMoverYes={handleConfirmMoverYes}
+                  onConfirmMoverNo={handleConfirmMoverNo}
+                  onOpenScamModal={() => setIsScamModalOpen(true)}
+                  onRequestAtBranch={handleRequestAtBranch}
+                  onRequestFastPath={() =>
+                    setSession((prev) => ({
+                      ...prev,
+                      memberActions: {
+                        ...prev.memberActions,
+                        fastPathRequested: !prev.memberActions.fastPathRequested,
+                      },
+                    }))
+                  }
+                  activeTab={activePhoneTab}
+                  setActiveTab={setActivePhoneTab}
+                  payStep={payStep}
+                  setPayStep={setPayStep}
+                />
+
+                {/* Guided story mode bar under the phone */}
+                <GuidedStoryBar
+                  currentIndex={session.stepIndex}
+                  totalSteps={memberEvents.length}
+                  eventTitle={currentEvent.event_type || 'Event'}
+                  canPrev={session.stepIndex > 0}
+                  canNext={session.stepIndex < memberEvents.length - 1}
+                  onPrev={() =>
+                    setSession((prev) => ({
+                      ...prev,
+                      stepIndex: Math.max(0, prev.stepIndex - 1),
+                    }))
+                  }
+                  onNext={() =>
+                    setSession((prev) => ({
+                      ...prev,
+                      stepIndex: Math.min(memberEvents.length - 1, prev.stepIndex + 1),
+                    }))
+                  }
+                  lang={session.lang}
+                />
+              </div>
+            ) : (
+              /* STAFF CONSOLE: Dashboard · Cases · Branch mode · Evidence & Data */
+              <div className="animate-in fade-in duration-150 pb-8">
+                <StaffConsole
+                  queueItems={queueItems}
+                  allEvents={allEvents}
+                  currentEvent={currentEvent}
+                  decision={currentDecision}
+                  signals={currentSignals}
                   staffAssist={staffAssist}
                   isLoadingAi={isLoadingAi}
                   onRefreshAi={triggerAiGenerations}
-                  assistedNotes={[
-                    {
-                      id: 'N1',
-                      author: 'Contact Center Specialist',
-                      channel: 'Inquiry',
-                      timestamp: 'Oct 14, 11:30 AM',
-                      text: 'Member called inquiring about daily withdrawal limits and wire delivery speeds. Sounded hurried.',
-                    },
-                    {
-                      id: 'N2',
-                      author: 'Sound Guardian System',
-                      channel: 'Automated Rule',
-                      timestamp: 'Oct 15, 10:22 PM',
-                      text: 'Quarantine pause engaged before network submit. Confirmation dispatched to pre-change phone.',
-                    },
-                  ]}
-                  onAddAssistedNote={handleAddAssistedNote}
-                  auditTrail={session.auditLog}
+                  auditLog={session.auditLog}
                   onActionStopATO={handleStaffStopATO}
                   onActionReleaseQuarantine={handleStaffReleaseWithDualApproval}
                   onActionContactPreChangePhone={handleStaffContactPreChangePhone}
                   onActionCreateCase={handleStaffCreateCase}
                   onActionRequestRecall={handleStaffRequestRecall}
+                  onAddAssistedNote={handleAddAssistedNote}
                   isStopped={session.staffActions.stoppedPayments.includes(
                     currentEvent.payment_id || 'P1003-007'
                   )}
@@ -778,14 +668,45 @@ export default function App() {
                   isRecallRequested={session.staffActions.recallRequested.includes(
                     currentEvent.payment_id || 'P1003-007'
                   )}
+                  scenarioId={session.scenarioId}
+                  isJamesCancelled={!!session.memberActions.cancelledJames}
+                  onJamesCancelWithdrawal={handleJamesCancelWithdrawal}
+                  onJamesProceed={() =>
+                    addAuditEntry(
+                      'Member Overrode Inquiry',
+                      'Tacoma Branch Teller #3',
+                      'Member insisted on cash withdrawal despite teller inquiry.'
+                    )
+                  }
+                  onTellerAskQuestion={() =>
+                    addAuditEntry(
+                      'Teller Security Question Posed',
+                      'Tacoma Branch Teller #3',
+                      'Teller asked: "Has anyone told you to keep this secret or to stay on the phone?"'
+                    )
+                  }
+                  onOpenScamReport={() => setIsScamModalOpen(true)}
+                  lang={session.lang}
                 />
-              </>
+              </div>
             )}
           </div>
         )}
       </main>
 
-      {/* Authentic Sound Credit Union Footer with Disclosures & Branches */}
+      {/* Collapsible "Why did this happen?" Drawer (Closed by default) */}
+      {currentScreen === 'app' && (
+        <WhyDrawer
+          currentEvent={currentEvent}
+          signals={currentSignals}
+          decision={currentDecision}
+          isOpen={isWhyDrawerOpen}
+          onToggle={() => setIsWhyDrawerOpen(!isWhyDrawerOpen)}
+          lang={session.lang}
+        />
+      )}
+
+      {/* Slim Authentic SCU Footer */}
       <SCUFooter onOpenAbout={() => setIsAboutOpen(true)} />
 
       {/* Modals */}
