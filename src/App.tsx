@@ -434,7 +434,7 @@ export default function App() {
 
   // Staff queue items computed dynamically for all 3 personas
   const queueItems = useMemo<QueueItem[]>(() => {
-    return [
+    const list: QueueItem[] = [
       {
         paymentId: 'P1004-001',
         memberId: 'M1004',
@@ -534,7 +534,50 @@ export default function App() {
         timestamp: '2026-10-06 09:20:00',
       },
     ];
-  }, [session.staffActions, session.memberActions.branchPriority, session.memberActions.cancelledJames]);
+
+    // If emergency scam report was submitted by member, create a prioritized case in queue
+    if (session.memberActions.scamReported) {
+      const memberLast4 = (scenarioDef.memberId.replace(/\D/g, '') || '1003').slice(-4);
+      const isBranch = !!session.memberActions.branchPriority;
+      const reportedCaseId = `C-2026-${memberLast4}`;
+
+      // Only add if not already in list
+      if (!list.some((item) => item.paymentId === reportedCaseId)) {
+        list.unshift({
+          paymentId: reportedCaseId,
+          memberId: scenarioDef.memberId,
+          memberToken: tokenizeMemberId(scenarioDef.memberId),
+          amount: currentEvent.amount || (scenarioDef.memberId === 'M1003' ? 3006.33 : scenarioDef.memberId === 'M1039' ? 4151.68 : 7000.0),
+          rail: currentEvent.payment_rail || (scenarioDef.memberId === 'M1004' ? 'Cash' : scenarioDef.memberId === 'M1039' ? 'ACH' : 'P2P'),
+          tier: 'QUARANTINE',
+          reasonCode: 'MEMBER_EMERGENCY_SCAM_REPORT',
+          reasonPlain: `Member emergency scam report: ${isBranch ? 'In-branch visit planned (PRIORITY)' : 'Phone callback requested'}. Outgoing rails paused.`,
+          timeLeft: isBranch ? 'Visiting branch now' : 'Callback requested',
+          isAfterHours: false,
+          isNextBusinessHours: false,
+          branchPriority: isBranch,
+          existingRiskScore: 95,
+          flaggedEvents: [
+            {
+              id: `SCAM-${memberLast4}`,
+              time: 'Now',
+              type: 'Emergency Scam Reported',
+              detail: `Member self-service report submitted (${isBranch ? 'Branch Priority' : 'Phone'})`,
+            },
+          ],
+          status: 'HELD',
+          timestamp: new Date().toISOString(),
+        });
+      }
+    }
+
+    // Sort queue: branch priority at top
+    return list.sort((a, b) => {
+      if (a.branchPriority && !b.branchPriority) return -1;
+      if (!a.branchPriority && b.branchPriority) return 1;
+      return 0;
+    });
+  }, [session.staffActions, session.memberActions.branchPriority, session.memberActions.cancelledJames, session.memberActions.scamReported, scenarioDef.memberId, currentEvent.amount, currentEvent.payment_rail]);
 
   if (csvLoading) {
     return (
@@ -759,28 +802,30 @@ export default function App() {
           isOpen={isScamModalOpen}
           onClose={() => setIsScamModalOpen(false)}
           lang={session.lang}
-          onSubmitReport={({ description, rail, amount }) => {
+          memberId={scenarioDef.memberId}
+          recentPayments={memberEvents}
+          onSubmitReport={({ reason, description, selectedPaymentIds, contactMethod, memberLast4 }) => {
+            const isBranch = contactMethod === 'branch';
             setSession((prev) => ({
               ...prev,
               memberActions: {
                 ...prev.memberActions,
                 scamReported: true,
                 frozen: true,
+                branchPriority: isBranch ? true : prev.memberActions.branchPriority,
               },
               staffActions: {
                 ...prev.staffActions,
-                createdCases: [...prev.staffActions.createdCases, 'C-2026-EMERGENCY'],
-                recallRequested: [...prev.staffActions.recallRequested, 'RECALL-EMERGENCY'],
+                createdCases: [...prev.staffActions.createdCases, `C-2026-${memberLast4}`],
+                recallRequested: [...prev.staffActions.recallRequested, `RECALL-C-2026-${memberLast4}`],
               },
             }));
             addAuditEntry(
               'Emergency Scam Report Submitted',
-              'Member Self-Service',
-              `Member reported scam: ${description || 'Unspecified'}. Rail: ${rail}, Amount: $${amount || '0'}. Rails frozen, recall dispatched, callback scheduled.`
+              'Member Self-Service (Scam Report)',
+              `Member reported scam: "${reason}". Details: ${description || 'None'}. Payments: ${selectedPaymentIds.join(', ')}. Reach via: ${isBranch ? 'Visit a branch (PRIORITY)' : 'Phone callback'}. Rails paused, case #C-2026-${memberLast4} opened.`
             );
           }}
-          isReported={!!session.memberActions.scamReported}
-          caseId="C-2026-9812"
         />
       </div>
     </ErrorBoundary>
