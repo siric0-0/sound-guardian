@@ -25,6 +25,7 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 import { maskPhone } from '../../lib/tokenization.ts';
+import { SarahDualPhoneView } from './SarahDualPhoneView.tsx';
 
 interface PhoneAppProps {
   scenarioId: ScenarioId;
@@ -49,7 +50,7 @@ interface PhoneAppProps {
   onOpenScamModal: () => void;
   onRequestAtBranch?: () => void;
   onRequestFastPath?: () => void;
-  onSwitchToStaffConsole?: (tab?: 'branch' | 'cases') => void;
+  onSwitchToStaffConsole?: (tab?: 'branch' | 'cases' | 'dashboard') => void;
   onReturnToStories?: () => void;
   activeTab: 'home' | 'pay' | 'activity' | 'help';
   setActiveTab: (tab: 'home' | 'pay' | 'activity' | 'help') => void;
@@ -128,6 +129,37 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
       .slice(-3)
       .reverse();
   }, [events, currentEvent.event_sequence]);
+
+  // =========================================================================
+  // SARAH ATO STORY: RENDER TWO PHONES SIDE BY SIDE
+  // =========================================================================
+  if (scenarioId === 'sarah_ato') {
+    const stepIdx =
+      events.findIndex((e) => e.event_id === currentEvent.event_id) >= 0
+        ? events.findIndex((e) => e.event_id === currentEvent.event_id)
+        : currentEvent.event_sequence
+        ? currentEvent.event_sequence - 1
+        : 0;
+
+    return (
+      <SarahDualPhoneView
+        events={events}
+        currentEvent={currentEvent}
+        stepIndex={stepIdx}
+        lang={lang}
+        largeText={largeText}
+        memberActions={memberActions}
+        onFreezeAndRecover={onFreezeAndRecover}
+        onConfirmLegitimate={onConfirmLegitimate}
+        onOpenScamModal={onOpenScamModal}
+        onRequestAtBranch={onRequestAtBranch}
+        onSwitchToStaffConsole={onSwitchToStaffConsole}
+        onReturnToStories={onReturnToStories}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+      />
+    );
+  }
 
   return (
     <div className="w-full max-w-[420px] mx-auto bg-white rounded-3xl shadow-xl border-4 border-slate-700 overflow-hidden flex flex-col h-[590px] sm:h-[630px] relative select-none">
@@ -479,64 +511,6 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
                       </div>
                     </div>
 
-                    {/* SARAH ATO: QUARANTINE INTERCEPT */}
-                    {scenarioId === 'sarah_ato' && !isFrozen && (
-                      <div className="bg-[#FEF3F2] border-2 border-[#FECDCA] rounded-xl p-4 text-xs text-[#7A271A] space-y-3">
-                        <div className="flex items-center gap-2">
-                          <ShieldAlert className="w-5 h-5 text-[#B42318] shrink-0" />
-                          <div>
-                            <h4 className="font-serif font-bold text-sm text-[#912018]">
-                              {isEs ? 'Destinatario Bloqueado · Confirmación Requerida' : 'Payee Blocked · Confirmation Required'}
-                            </h4>
-                            <span className="text-[10px] text-[#7A271A]">
-                              {isEs ? 'Bloqueo previo al envío de fondos' : 'Pre-send lock engaged upfront'}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Coercion Warning */}
-                        <div className="bg-[#FFFAEB] border border-[#FEDF89] rounded-lg p-2.5 text-[11px] text-[#7A2E0E]">
-                          <strong>Notice:</strong> Sound will never call or text asking for your confirmation code.
-                        </div>
-
-                        <p className="text-[11px] leading-relaxed">
-                          To keep your money safe, a confirmation was sent to the phone on file before recent updates ({maskPhone('(206) 555-4821')}).
-                          Payments to this payee are locked upfront.
-                        </p>
-
-                        {/* Primary 48px Navy Button */}
-                        <button
-                          onClick={() => {
-                            onFreezeAndRecover();
-                            setPayStep(4);
-                          }}
-                          className="w-full h-12 rounded-lg bg-[#002D72] hover:bg-[#001D4A] text-white font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors"
-                        >
-                          <Lock className="w-4 h-4" />
-                          <span>{isEs ? 'Congelar y Recuperar (No fui yo)' : 'Freeze & Recover (This Was Not Me)'}</span>
-                        </button>
-
-                        <div className="flex items-center justify-between pt-1 text-[11px]">
-                          {onRequestAtBranch && (
-                            <button
-                              onClick={onRequestAtBranch}
-                              className="text-[#0082CA] hover:underline cursor-pointer"
-                            >
-                              {memberActions.branchPriority ? 'Marked Branch Priority' : 'Request at Branch'}
-                            </button>
-                          )}
-                          <button
-                            onClick={() => {
-                              onConfirmLegitimate();
-                              setPayStep(4);
-                            }}
-                            className="text-[#067647] hover:underline cursor-pointer font-medium"
-                          >
-                            Approve Payee
-                          </button>
-                        </div>
-                      </div>
-                    )}
 
                     {/* LEGITIMATE MOVER: LIGHT TIER CHECK */}
                     {scenarioId === 'mover_legitimate' && !isMoverConfirmed && (

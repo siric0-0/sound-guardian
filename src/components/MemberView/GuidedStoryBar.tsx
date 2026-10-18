@@ -27,7 +27,7 @@ export const GuidedStoryBar: React.FC<GuidedStoryBarProps> = ({
   const isEs = lang === 'es';
 
   return (
-    <div className="w-full max-w-[420px] mx-auto mt-3 space-y-2">
+    <div className="w-full max-w-lg mx-auto mt-3 space-y-2">
       {/* Main Back / Step / Next Bar */}
       <div className="bg-white rounded-xl border border-[#D0D9E2] shadow-xs p-2.5 flex items-center justify-between gap-2">
         {/* Back Button */}

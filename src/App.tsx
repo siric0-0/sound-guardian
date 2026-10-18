@@ -242,11 +242,17 @@ export default function App() {
   const handleFreezeAndRecover = () => {
     setSession((prev) => ({
       ...prev,
+      stepIndex: prev.scenarioId === 'sarah_ato' ? Math.max(prev.stepIndex, 8) : prev.stepIndex,
       memberActions: { ...prev.memberActions, frozen: true },
       staffActions: {
         ...prev.staffActions,
-        stoppedPayments: [...prev.staffActions.stoppedPayments, currentEvent.payment_id || 'P1003-007'],
-        createdCases: [...prev.staffActions.createdCases, 'C-2026-1003'],
+        stoppedPayments: Array.from(new Set([
+          ...prev.staffActions.stoppedPayments,
+          currentEvent.payment_id || 'P1003-007',
+          'P1003-007',
+          'P1003-008',
+        ])),
+        createdCases: Array.from(new Set([...prev.staffActions.createdCases, 'C-2026-1003'])),
       },
     }));
     addAuditEntry(
@@ -478,7 +484,9 @@ export default function App() {
           { id: 'E3', time: '22:15', type: 'Phone Change', detail: 'Attacker phone (555) 019-2834' },
           { id: 'E4', time: '22:19', type: 'Recipient Added', detail: 'New payee quick_transfer_p2p enrolled' },
         ],
-        status: session.staffActions.stoppedPayments.includes('P1003-007')
+        status: session.memberActions.frozen ||
+        (session.scenarioId === 'sarah_ato' && session.stepIndex >= 8) ||
+        session.staffActions.stoppedPayments.includes('P1003-007')
           ? 'STOPPED'
           : session.staffActions.releasedPayments.includes('P1003-007')
           ? 'RELEASED'
@@ -504,7 +512,10 @@ export default function App() {
           { id: 'E6', time: '22:22', type: 'Payment Initiated', detail: '1st P2P transfer ($1,574.18) blocked' },
           { id: 'E7', time: '22:30', type: 'Payment Initiated', detail: '2nd P2P transfer ($1,432.15) blocked' },
         ],
-        status: session.staffActions.stoppedPayments.includes('P1003-007')
+        status: session.memberActions.frozen ||
+        (session.scenarioId === 'sarah_ato' && session.stepIndex >= 8) ||
+        session.staffActions.stoppedPayments.includes('P1003-007') ||
+        session.staffActions.stoppedPayments.includes('P1003-008')
           ? 'STOPPED'
           : 'HELD',
         timestamp: '2026-10-15 22:30:00',
@@ -745,7 +756,11 @@ export default function App() {
                     isReleased={session.staffActions.releasedPayments.includes(
                       currentEvent.payment_id || 'P1003-007'
                     )}
-                    isCaseCreated={session.staffActions.createdCases.includes('C-2026-1003')}
+                    isCaseCreated={
+                      session.staffActions.createdCases.includes('C-2026-1003') ||
+                      (session.scenarioId === 'sarah_ato' && session.stepIndex >= 8) ||
+                      !!session.memberActions.frozen
+                    }
                     isRecallRequested={session.staffActions.recallRequested.includes(
                       currentEvent.payment_id || 'P1003-007'
                     )}
