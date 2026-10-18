@@ -80,6 +80,14 @@ export const SarahDualPhoneView: React.FC<SarahDualPhoneViewProps> = ({
   const isStep9 = stepIndex >= 8;
   const isQuarantineStep = stepIndex >= 5 && !isStep9 && !memberActions.frozen;
 
+  // On phones only one frame fits, so show the one that matters for this step
+  // and let the viewer switch with a toggle.
+  const [mobileSide, setMobileSide] = useState<'left' | 'right'>('left');
+  useEffect(() => {
+    setMobileSide(stepIndex === 6 || stepIndex >= 8 ? 'right' : 'left');
+    if (typeof window !== 'undefined' && window.innerWidth < 640) window.scrollTo(0, 0);
+  }, [stepIndex]);
+
   const currentAmount = isStep8 ? 1432.15 : 1574.18;
   const checkingBalance = currentEvent.available_balance_after || 5420.50;
 
@@ -90,10 +98,22 @@ export const SarahDualPhoneView: React.FC<SarahDualPhoneViewProps> = ({
 
   return (
     <div className="w-full max-w-6xl mx-auto flex flex-col min-[900px]:flex-row items-center justify-center gap-6 sm:gap-12 py-1 select-none overflow-x-hidden">
+      {isMobile && (
+        <div role="tablist" aria-label={isEs ? 'Elegir teléfono' : 'Choose phone'} className="w-full flex rounded-xl border border-[#D0D9E2] bg-white p-1 text-xs font-bold">
+          <button role="tab" aria-selected={mobileSide === 'left'} onClick={() => setMobileSide('left')}
+            className={`flex-1 min-h-[44px] rounded-lg ${mobileSide === 'left' ? 'bg-amber-100 text-amber-900' : 'text-[#5B6B7A]'}`}>
+            {isEs ? 'Sesión que agregó el destinatario' : 'Session that added the payee'}
+          </button>
+          <button role="tab" aria-selected={mobileSide === 'right'} onClick={() => setMobileSide('right')}
+            className={`flex-1 min-h-[44px] rounded-lg ${mobileSide === 'right' ? 'bg-emerald-100 text-emerald-900' : 'text-[#5B6B7A]'}`}>
+            {isEs ? 'Teléfono anterior de Sarah' : "Sarah's previous phone"}
+          </button>
+        </div>
+      )}
       {/* ========================================================================= */}
       {/* LEFT PHONE: Session that added the payee (Attacker Session)                */}
       {/* ========================================================================= */}
-      <div className="flex flex-col items-center w-full min-[900px]:w-auto">
+      <div className={`flex flex-col items-center w-full min-[900px]:w-auto ${isMobile && mobileSide !== 'left' ? 'hidden' : ''}`}>
         {/* Frame Label Above */}
         <div className="w-full text-center mb-2">
           <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold uppercase tracking-wider shadow-2xs">
@@ -111,7 +131,7 @@ export const SarahDualPhoneView: React.FC<SarahDualPhoneViewProps> = ({
           }
           style={
             isMobile
-              ? { width: '100%', height: 'auto', minHeight: 'calc(100vh - 140px)' }
+              ? { width: '100%', height: 'auto' }
               : {
                   height: 'min(780px, calc(100vh - 170px))',
                   aspectRatio: '9 / 19.5',
@@ -371,7 +391,7 @@ export const SarahDualPhoneView: React.FC<SarahDualPhoneViewProps> = ({
       {/* ========================================================================= */}
       {/* RIGHT PHONE: Sarah's phone on file before the change (•••-4821)           */}
       {/* ========================================================================= */}
-      <div className="flex flex-col items-center w-full min-[900px]:w-auto">
+      <div className={`flex flex-col items-center w-full min-[900px]:w-auto ${isMobile && mobileSide !== 'right' ? 'hidden' : ''}`}>
         {/* Frame Label Above */}
         <div className="w-full text-center mb-2">
           <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300 text-xs font-bold uppercase tracking-wider shadow-2xs">
@@ -389,7 +409,7 @@ export const SarahDualPhoneView: React.FC<SarahDualPhoneViewProps> = ({
           }
           style={
             isMobile
-              ? { width: '100%', height: 'auto', minHeight: 'calc(100vh - 140px)' }
+              ? { width: '100%', height: 'auto' }
               : {
                   height: 'min(780px, calc(100vh - 170px))',
                   aspectRatio: '9 / 19.5',
