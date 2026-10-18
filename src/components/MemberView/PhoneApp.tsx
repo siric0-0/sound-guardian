@@ -33,6 +33,7 @@ import { t, translateEventType, translateChannel } from '../../lib/dictionary.ts
 
 interface PhoneAppProps {
   scenarioId: ScenarioId;
+  stepIndex?: number;
   events: DemoEvent[];
   currentEvent: DemoEvent;
   decision?: ArbiterDecision | null;
@@ -64,6 +65,7 @@ interface PhoneAppProps {
 
 export const PhoneApp: React.FC<PhoneAppProps> = ({
   scenarioId,
+  stepIndex,
   events,
   currentEvent,
   decision,
@@ -149,7 +151,9 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
   // =========================================================================
   if (scenarioId === 'sarah_ato') {
     const stepIdx =
-      events.findIndex((e) => e.event_id === currentEvent.event_id) >= 0
+      typeof stepIndex === 'number'
+        ? stepIndex
+        : events.findIndex((e) => e.event_id === currentEvent.event_id) >= 0
         ? events.findIndex((e) => e.event_id === currentEvent.event_id)
         : currentEvent.event_sequence
         ? currentEvent.event_sequence - 1

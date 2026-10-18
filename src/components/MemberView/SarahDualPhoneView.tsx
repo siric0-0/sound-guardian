@@ -78,7 +78,7 @@ export const SarahDualPhoneView: React.FC<SarahDualPhoneViewProps> = ({
   // Step 8 is index 7 (2nd payment attempt $1432.15); Step 9 is index 8 (Secured)
   const isStep8 = stepIndex === 7;
   const isStep9 = stepIndex >= 8;
-  const isQuarantineStep = stepIndex >= 5 && !isStep9 && !memberActions.frozen;
+  const isQuarantineStep = stepIndex >= 5 && stepIndex < 8;
 
   // On phones only one frame fits, so show the one that matters for this step
   // and let the viewer switch with a toggle.
