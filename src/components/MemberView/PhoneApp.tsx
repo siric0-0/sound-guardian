@@ -23,6 +23,9 @@ import {
   Clock,
   X,
   ArrowLeft,
+  Signal,
+  Wifi,
+  Battery,
 } from 'lucide-react';
 import { maskPhone } from '../../lib/tokenization.ts';
 import { SarahDualPhoneView } from './SarahDualPhoneView.tsx';
@@ -162,45 +165,65 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
   }
 
   return (
-    <div className="w-full max-w-[420px] mx-auto bg-white rounded-3xl shadow-xl border-4 border-slate-700 overflow-hidden flex flex-col h-[590px] sm:h-[630px] relative select-none">
-      {/* Phone Status Bar */}
-      <div className="bg-[#002D72] text-white px-5 pt-2 pb-1.5 flex items-center justify-between text-[11px] font-medium shrink-0">
-        <span className="font-mono">9:41</span>
-        <div className="w-16 h-4 bg-slate-800 rounded-full mx-auto" />
-        <div className="flex items-center gap-1.5">
-          <span>5G</span>
-          <span>100%</span>
+    <div
+      className="relative select-none mx-auto transition-all duration-150
+                 border-[10px] border-slate-900 rounded-[44px] shadow-2xl bg-slate-900
+                 max-sm:border-0 max-sm:rounded-none max-sm:shadow-none max-sm:w-full max-sm:h-full max-sm:max-w-none max-sm:aspect-auto"
+      style={{
+        height: 'min(780px, calc(100vh - 170px))',
+        aspectRatio: '9 / 19.5',
+        width: 'auto',
+      }}
+    >
+      {/* Screen inside radius 34px */}
+      <div className="w-full h-full rounded-[34px] max-sm:rounded-none overflow-hidden flex flex-col bg-white relative">
+        {/* Dynamic-island pill centered at the top (120×30, black) */}
+        <div className="w-[120px] h-[30px] bg-black rounded-full absolute top-2 left-1/2 -translate-x-1/2 z-30 pointer-events-none flex items-center justify-between px-3 max-sm:hidden">
+          <div className="w-2.5 h-2.5 rounded-full bg-slate-900 border border-slate-800" />
+          <div className="w-2.5 h-2.5 rounded-full bg-slate-900/60" />
         </div>
-      </div>
 
-      {/* App Header */}
-      <div className="bg-[#002D72] text-white px-4 py-2.5 flex items-center justify-between shrink-0 border-b border-[#001D4A]">
-        <div>
-          <span className="font-serif font-bold text-sm tracking-tight block">
-            Sound Credit Union
-          </span>
-          <span className="text-[10px] text-[#E1F0F8]/80">
-            {isEs ? 'Banca Digital de Sound' : 'Sound Digital Banking'}
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          {onReturnToStories && (
-            <button
-              onClick={onReturnToStories}
-              className="text-[10px] bg-white/10 hover:bg-white/20 text-[#E1F0F8] px-2 py-1 rounded transition-colors cursor-pointer"
-              title="Return to story selector"
-            >
-              Exit
-            </button>
-          )}
-          <div className="w-7 h-7 rounded-full bg-[#0082CA] text-white flex items-center justify-center font-bold text-xs">
-            S
+        {/* Status bar 44px tall: time left, signal/wifi/battery icons right (use lucide icons, not "5G 100%" text) */}
+        <div className="h-[44px] bg-[#002D72] text-white px-6 flex items-center justify-between text-xs font-semibold shrink-0 relative z-20">
+          <span className="font-mono text-xs pl-1">9:41</span>
+          <div className="flex items-center gap-1.5 pr-1">
+            <Signal className="w-3.5 h-3.5" />
+            <Wifi className="w-3.5 h-3.5" />
+            <Battery className="w-4 h-4" />
           </div>
         </div>
-      </div>
 
-      {/* Screen Body */}
-      <div className="flex-1 overflow-y-auto p-4 bg-[#F4F8FA]">
+        {/* App Header */}
+        <div className="bg-[#002D72] text-white px-4 py-2 flex items-center justify-between shrink-0 border-b border-[#001D4A]">
+          <div>
+            <span className="font-serif font-bold text-sm tracking-tight block">
+              Sound Credit Union
+            </span>
+            <span className="text-[10px] text-[#E1F0F8]/80">
+              {isEs ? 'Banca Digital de Sound' : 'Sound Digital Banking'}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            {onReturnToStories && (
+              <button
+                onClick={onReturnToStories}
+                className="text-[10px] bg-white/10 hover:bg-white/20 text-[#E1F0F8] px-2 py-1 rounded transition-colors cursor-pointer"
+                title="Return to story selector"
+              >
+                Exit
+              </button>
+            )}
+            <div className="w-7 h-7 rounded-full bg-[#0082CA] text-white flex items-center justify-center font-bold text-xs">
+              S
+            </div>
+          </div>
+        </div>
+
+        {/* Content area scrolls inside the screen only; base font 15px inside the phone; large-text scales content */}
+        <div
+          className="flex-1 overflow-y-auto p-4 bg-[#F4F8FA]"
+          style={{ fontSize: largeText ? '17px' : '15px' }}
+        >
         {/* ================= HOME TAB ================= */}
         {activeTab === 'home' && (
           <div className="space-y-3.5">
@@ -790,53 +813,60 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
         )}
       </div>
 
-      {/* Bottom Phone Tabs (Home · Pay · Activity · Help) */}
-      <div className="bg-white border-t border-[#D0D9E2] grid grid-cols-4 py-2 px-1 text-center shrink-0">
-        <button
-          onClick={() => setActiveTab('home')}
-          className={`flex flex-col items-center gap-1 cursor-pointer transition-colors ${
-            activeTab === 'home' ? 'text-[#002D72] font-bold' : 'text-[#5B6B7A] hover:text-[#002D72]'
-          }`}
-        >
-          <Home className="w-4 h-4" />
-          <span className="text-[10px]">{isEs ? 'Inicio' : 'Home'}</span>
-        </button>
+      {/* Bottom Phone Tabs (64px) + Home-indicator bar (5px tall, 134px wide) */}
+      <div className="bg-white border-t border-[#D0D9E2] shrink-0">
+        <div className="h-[64px] grid grid-cols-4 items-center text-center px-1">
+          <button
+            onClick={() => setActiveTab('home')}
+            className={`min-h-[44px] flex flex-col items-center justify-center gap-1 cursor-pointer transition-colors ${
+              activeTab === 'home' ? 'text-[#002D72] font-bold' : 'text-[#5B6B7A] hover:text-[#002D72]'
+            }`}
+          >
+            <Home className="w-5 h-5" />
+            <span className="text-[11px]">{isEs ? 'Inicio' : 'Home'}</span>
+          </button>
 
-        <button
-          onClick={() => {
-            setActiveTab('pay');
-            if (scenarioId !== 'james_branch') {
-              setPayStep(1);
-            }
-          }}
-          className={`flex flex-col items-center gap-1 cursor-pointer transition-colors ${
-            activeTab === 'pay' ? 'text-[#002D72] font-bold' : 'text-[#5B6B7A] hover:text-[#002D72]'
-          }`}
-        >
-          <Send className="w-4 h-4" />
-          <span className="text-[10px]">{isEs ? 'Pagar' : 'Pay'}</span>
-        </button>
+          <button
+            onClick={() => {
+              setActiveTab('pay');
+              if (scenarioId !== 'james_branch') {
+                setPayStep(1);
+              }
+            }}
+            className={`min-h-[44px] flex flex-col items-center justify-center gap-1 cursor-pointer transition-colors ${
+              activeTab === 'pay' ? 'text-[#002D72] font-bold' : 'text-[#5B6B7A] hover:text-[#002D72]'
+            }`}
+          >
+            <Send className="w-5 h-5" />
+            <span className="text-[11px]">{isEs ? 'Pagar' : 'Pay'}</span>
+          </button>
 
-        <button
-          onClick={() => setActiveTab('activity')}
-          className={`flex flex-col items-center gap-1 cursor-pointer transition-colors ${
-            activeTab === 'activity' ? 'text-[#002D72] font-bold' : 'text-[#5B6B7A] hover:text-[#002D72]'
-          }`}
-        >
-          <List className="w-4 h-4" />
-          <span className="text-[10px]">{isEs ? 'Actividad' : 'Activity'}</span>
-        </button>
+          <button
+            onClick={() => setActiveTab('activity')}
+            className={`min-h-[44px] flex flex-col items-center justify-center gap-1 cursor-pointer transition-colors ${
+              activeTab === 'activity' ? 'text-[#002D72] font-bold' : 'text-[#5B6B7A] hover:text-[#002D72]'
+            }`}
+          >
+            <List className="w-5 h-5" />
+            <span className="text-[11px]">{isEs ? 'Actividad' : 'Activity'}</span>
+          </button>
 
-        <button
-          onClick={() => setActiveTab('help')}
-          className={`flex flex-col items-center gap-1 cursor-pointer transition-colors ${
-            activeTab === 'help' ? 'text-[#002D72] font-bold' : 'text-[#5B6B7A] hover:text-[#002D72]'
-          }`}
-        >
-          <HelpCircle className="w-4 h-4" />
-          <span className="text-[10px]">{isEs ? 'Ayuda' : 'Help'}</span>
-        </button>
+          <button
+            onClick={() => setActiveTab('help')}
+            className={`min-h-[44px] flex flex-col items-center justify-center gap-1 cursor-pointer transition-colors ${
+              activeTab === 'help' ? 'text-[#002D72] font-bold' : 'text-[#5B6B7A] hover:text-[#002D72]'
+            }`}
+          >
+            <HelpCircle className="w-5 h-5" />
+            <span className="text-[11px]">{isEs ? 'Ayuda' : 'Help'}</span>
+          </button>
+        </div>
+        {/* 5px home indicator bar under it (134px wide, rounded) */}
+        <div className="pb-1.5 pt-0.5 flex justify-center bg-white max-sm:pb-3">
+          <div className="w-[134px] h-[5px] bg-slate-300 rounded-full" />
+        </div>
       </div>
     </div>
+  </div>
   );
 };

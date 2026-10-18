@@ -650,7 +650,7 @@ export default function App() {
         />
 
         {/* Main Content Area */}
-        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-4 flex flex-col justify-start">
+        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-1.5 sm:py-2 flex flex-col justify-start">
           {/* ================= SCREEN 1: CHOOSE A STORY (START SCREEN) ================= */}
           {currentScreen === 'story_picker' ? (
             <ChooseStoryScreen
@@ -672,7 +672,7 @@ export default function App() {
             <div className="flex-1 flex flex-col justify-start">
               {session.viewMode === 'member' ? (
                 /* MEMBER APP: Phone-sized frame with bottom tabs + Guided story bar */
-                <div className="flex flex-col items-center justify-center py-2 animate-in fade-in duration-150">
+                <div className="flex flex-col items-center justify-center py-0.5 sm:py-1 animate-in fade-in duration-150">
                   <PhoneApp
                     scenarioId={session.scenarioId}
                     events={memberEvents}
