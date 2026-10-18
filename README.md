@@ -37,6 +37,13 @@ npm run dev
 
 Open [http://localhost:5173](http://localhost:5173) in your browser.
 
+### 3. Run with Streamlit
+```bash
+pip install -r requirements.txt
+streamlit run streamlit_app.py
+```
+See [STREAMLIT.md](STREAMLIT.md) for embedding details.
+
 > **Offline Mode**: Sound Guardian runs 100% locally with built-in deterministic templates. No API key is required. If an optional Gemini key is configured, live AI explanations are seamlessly enabled.
 
 ---

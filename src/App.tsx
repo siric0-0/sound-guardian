@@ -761,6 +761,7 @@ export default function App() {
                 <div className="flex flex-col items-center justify-center py-0.5 sm:py-1 animate-in fade-in duration-150">
                   <PhoneApp
                     scenarioId={session.scenarioId}
+                    stepIndex={session.stepIndex}
                     events={memberEvents}
                     currentEvent={currentEvent}
                     decision={currentDecision}
