@@ -1,5 +1,6 @@
 import React from 'react';
 import { ArrowLeft, ArrowRight, RotateCcw, Home } from 'lucide-react';
+import { t, translateEventType } from '../../lib/dictionary.ts';
 
 interface GuidedStoryBarProps {
   currentIndex: number;
@@ -42,16 +43,16 @@ export const GuidedStoryBar: React.FC<GuidedStoryBarProps> = ({
           aria-label="Previous step"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
-          <span>{isEs ? 'Atrás' : 'Back'}</span>
+          <span>{t('back', lang)}</span>
         </button>
 
         {/* Center: Step Count & Event Title */}
         <div className="text-center truncate px-2">
           <span className="text-[11px] font-bold text-[#002D72] block truncate">
-            {isEs ? `Paso ${currentIndex + 1} de ${totalSteps}` : `Step ${currentIndex + 1} of ${totalSteps}`}
+            {t('step_x_of_y', lang, { current: currentIndex + 1, total: totalSteps })}
           </span>
-          <span className="text-[10px] text-[#5B6B7A] truncate block max-w-[180px]" title={eventTitle}>
-            {eventTitle}
+          <span className="text-[10px] text-[#5B6B7A] truncate block max-w-[180px]" title={translateEventType(eventTitle, lang)}>
+            {translateEventType(eventTitle, lang)}
           </span>
         </div>
 
@@ -66,7 +67,7 @@ export const GuidedStoryBar: React.FC<GuidedStoryBarProps> = ({
           }`}
           aria-label="Next step"
         >
-          <span>{isEs ? 'Siguiente' : 'Next'}</span>
+          <span>{t('next', lang)}</span>
           <ArrowRight className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -78,7 +79,7 @@ export const GuidedStoryBar: React.FC<GuidedStoryBarProps> = ({
           className="inline-flex items-center gap-1 text-[11px] text-[#5B6B7A] hover:text-[#002D72] hover:underline cursor-pointer py-0.5"
         >
           <Home className="w-3 h-3 text-[#0082CA]" />
-          <span>{isEs ? '← Volver a elegir historia' : '← Return to stories'}</span>
+          <span>{t('return_to_stories', lang)}</span>
         </button>
       </div>
     </div>

@@ -12,6 +12,7 @@ import {
   HelpCircle,
 } from 'lucide-react';
 import { DemoEvent } from '../../types.ts';
+import { t, translateEventType } from '../../lib/dictionary.ts';
 
 interface ScamReportModalProps {
   isOpen: boolean;
@@ -152,7 +153,7 @@ export const ScamReportModal: React.FC<ScamReportModalProps> = ({
           <div className="flex items-center gap-2.5">
             <AlertOctagon className="w-5 h-5 text-amber-400" />
             <h3 id="scam-modal-title" className="font-serif font-bold text-base">
-              {isEs ? 'Reportar una Estafa o Fraude' : "I Think I've Been Scammed"}
+              {t('scam_modal_title', lang)}
             </h3>
           </div>
 
@@ -162,7 +163,7 @@ export const ScamReportModal: React.FC<ScamReportModalProps> = ({
             aria-label="Close"
           >
             <X className="w-4 h-4" />
-            <span>{isEs ? '✕ Cerrar' : '✕ Close'}</span>
+            <span>{t('scam_close', lang)}</span>
           </button>
         </div>
 
@@ -173,13 +174,15 @@ export const ScamReportModal: React.FC<ScamReportModalProps> = ({
               {/* Progress Bar (Step X of 3) */}
               <div className="flex items-center justify-between text-xs font-semibold text-[#002D72] pb-2 border-b border-[#D0D9E2]">
                 <span>
-                  {isEs
-                    ? `Paso ${step} de 3: ${
-                        step === 1 ? '¿Qué ocurrió?' : step === 2 ? '¿Qué pago?' : '¿Cómo contactarle?'
-                      }`
-                    : `Step ${step} of 3: ${
-                        step === 1 ? 'What happened?' : step === 2 ? 'Which payment?' : 'How should we reach you?'
-                      }`}
+                  {t('scam_progress', lang, {
+                    step,
+                    title:
+                      step === 1
+                        ? t('scam_step1_title', lang)
+                        : step === 2
+                        ? t('scam_step2_title', lang)
+                        : t('scam_step3_title', lang),
+                  })}
                 </span>
                 <div className="flex items-center gap-1.5">
                   {[1, 2, 3].map((s) => (
@@ -199,37 +202,35 @@ export const ScamReportModal: React.FC<ScamReportModalProps> = ({
 
               {/* Compassionate reassurance pill */}
               <div className="p-3 bg-[#F4F8FA] rounded-xl border border-[#D0D9E2] text-xs text-[#5B6B7A]">
-                {isEs
-                  ? 'Estamos aquí para ayudarle, y no es su culpa. Las estafas engañan a personas cuidadosas todos los días.'
-                  : "We're here to help, and it's not your fault. Scams fool careful people every day."}
+                {t('scam_reassurance', lang)}
               </div>
 
               {/* ================= STEP 1: What happened? ================= */}
               {step === 1 && (
                 <div className="space-y-3">
                   <h4 className="font-serif font-bold text-sm text-[#002D72]">
-                    {isEs ? '1. ¿Qué ocurrió?' : '1. What happened?'}
+                    {t('scam_step1_header', lang)}
                   </h4>
 
                   <div className="space-y-2 text-xs">
                     {[
                       {
+                        key: 'scam_opt_account',
                         en: 'Someone got into my account',
-                        es: 'Alguien ingresó a mi cuenta',
                       },
                       {
+                        key: 'scam_opt_scammer',
                         en: 'I sent money to someone I now think is a scammer',
-                        es: 'Envié dinero a alguien que ahora creo que es un estafador',
                       },
                       {
+                        key: 'scam_opt_other',
                         en: 'Something else',
-                        es: 'Otra situación',
                       },
                     ].map((opt) => {
                       const isSelected = selectedReason === opt.en;
                       return (
                         <div
-                          key={opt.en}
+                          key={opt.key}
                           onClick={() => setSelectedReason(opt.en)}
                           className={`p-3.5 rounded-xl border-2 transition-all cursor-pointer flex items-center justify-between ${
                             isSelected
@@ -237,7 +238,7 @@ export const ScamReportModal: React.FC<ScamReportModalProps> = ({
                               : 'border-[#D0D9E2] bg-white hover:bg-slate-50 text-[#1B2733]'
                           }`}
                         >
-                          <span>{isEs ? opt.es : opt.en}</span>
+                          <span>{t(opt.key, lang)}</span>
                           <div
                             className={`w-4 h-4 rounded-full border flex items-center justify-center ${
                               isSelected ? 'border-[#002D72] bg-[#002D72]' : 'border-slate-400'
@@ -252,17 +253,13 @@ export const ScamReportModal: React.FC<ScamReportModalProps> = ({
 
                   <div className="pt-2">
                     <label className="block text-[11px] font-semibold text-[#5B6B7A] mb-1">
-                      {isEs ? 'Detalles adicionales (opcional):' : 'Additional details (optional):'}
+                      {t('scam_details_label', lang)}
                     </label>
                     <textarea
                       rows={2}
                       value={additionalText}
                       onChange={(e) => setAdditionalText(e.target.value)}
-                      placeholder={
-                        isEs
-                          ? 'Describa brevemente lo ocurrido (ej. recibí un mensaje de texto de un supuesto banco)...'
-                          : 'Brief details (e.g. received a phone call or text instructing to transfer money)...'
-                      }
+                      placeholder={t('scam_details_placeholder', lang)}
                       className="w-full text-xs p-2.5 rounded-lg border border-[#D0D9E2] bg-white text-[#1B2733] focus:border-[#002D72] focus:outline-none"
                     />
                   </div>
@@ -273,12 +270,10 @@ export const ScamReportModal: React.FC<ScamReportModalProps> = ({
               {step === 2 && (
                 <div className="space-y-3">
                   <h4 className="font-serif font-bold text-sm text-[#002D72]">
-                    {isEs ? '2. ¿Qué pago o transacción?' : '2. Which payment?'}
+                    {t('scam_step2_header', lang)}
                   </h4>
                   <p className="text-[11px] text-[#5B6B7A]">
-                    {isEs
-                      ? 'Seleccione los pagos recientes involucrados para que podamos intentar detenerlos o solicitar su devolución:'
-                      : 'Select any recent outgoing payments involved so we can initiate recall attempts:'}
+                    {t('scam_which_payment_desc', lang)}
                   </p>
 
                   <div className="space-y-2 max-h-48 overflow-y-auto text-xs">
@@ -299,7 +294,7 @@ export const ScamReportModal: React.FC<ScamReportModalProps> = ({
                             <div>
                               <div className="font-mono text-xs">{pid}</div>
                               <div className="text-[10px] text-[#5B6B7A]">
-                                {ev.event_type} · {ev.payment_rail || 'P2P'} · {ev.event_timestamp.slice(0, 16)}
+                                {translateEventType(ev.event_type, lang)} · {ev.payment_rail || 'P2P'} · {ev.event_timestamp.slice(0, 16)}
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
@@ -320,7 +315,7 @@ export const ScamReportModal: React.FC<ScamReportModalProps> = ({
                       })
                     ) : (
                       <div className="p-3 bg-slate-50 rounded-lg text-slate-600 text-xs text-center">
-                        {isEs ? 'No hay pagos digitales registrados' : 'No outgoing digital payments on record'}
+                        {t('scam_no_payments', lang)}
                       </div>
                     )}
 
@@ -334,7 +329,7 @@ export const ScamReportModal: React.FC<ScamReportModalProps> = ({
                       }`}
                     >
                       <span className="text-xs">
-                        {isEs ? "No estoy seguro/a de cuál fue" : "I'm not sure"}
+                        {t('scam_not_sure', lang)}
                       </span>
                       <input
                         type="checkbox"
@@ -351,7 +346,7 @@ export const ScamReportModal: React.FC<ScamReportModalProps> = ({
               {step === 3 && (
                 <div className="space-y-3">
                   <h4 className="font-serif font-bold text-sm text-[#002D72]">
-                    {isEs ? '3. ¿Cómo debemos contactarle?' : '3. How should we reach you?'}
+                    {t('scam_step3_header', lang)}
                   </h4>
 
                   <div className="space-y-2.5 text-xs">
@@ -366,11 +361,9 @@ export const ScamReportModal: React.FC<ScamReportModalProps> = ({
                     >
                       <PhoneCall className="w-4 h-4 text-[#0082CA] shrink-0 mt-0.5" />
                       <div className="flex-1">
-                        <div className="font-bold">{isEs ? 'Llamarme por teléfono' : 'Call me'}</div>
+                        <div className="font-bold">{t('scam_reach_call', lang)}</div>
                         <p className="text-[11px] text-[#5B6B7A] mt-0.5">
-                          {isEs
-                            ? 'Un especialista en fraude le llamará a su número registrado antes de cambios.'
-                            : 'A fraud specialist will call your trusted number on file before recent updates.'}
+                          {t('scam_reach_call_desc', lang)}
                         </p>
                       </div>
                     </div>
@@ -387,15 +380,13 @@ export const ScamReportModal: React.FC<ScamReportModalProps> = ({
                       <Building2 className="w-4 h-4 text-purple-700 shrink-0 mt-0.5" />
                       <div className="flex-1">
                         <div className="font-bold flex items-center gap-1.5">
-                          <span>{isEs ? 'Visitaré una sucursal' : "I'll visit a branch"}</span>
+                          <span>{t('scam_reach_branch', lang)}</span>
                           <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-purple-200 text-purple-900 border border-purple-300">
                             PRIORITY
                           </span>
                         </div>
                         <p className="text-[11px] text-[#5B6B7A] mt-0.5">
-                          {isEs
-                            ? 'Marca su caso con PRIORIDAD en la consola de sucursal para cuando usted llegue.'
-                            : 'Marks your case as PRIORITY on the branch staff console so tellers are ready for you.'}
+                          {t('scam_reach_branch_desc', lang)}
                         </p>
                       </div>
                     </div>
@@ -412,7 +403,7 @@ export const ScamReportModal: React.FC<ScamReportModalProps> = ({
                       className="px-4 py-2.5 rounded-lg border border-[#D0D9E2] text-[#002D72] text-xs font-semibold flex items-center gap-1 cursor-pointer hover:bg-slate-50 transition-colors"
                     >
                       <ArrowLeft className="w-3.5 h-3.5" />
-                      <span>{isEs ? 'Atrás' : 'Back'}</span>
+                      <span>{t('back', lang)}</span>
                     </button>
                   )}
 
@@ -426,7 +417,7 @@ export const ScamReportModal: React.FC<ScamReportModalProps> = ({
                           : 'bg-[#002D72] hover:bg-[#001D4A] text-white shadow-xs'
                       }`}
                     >
-                      <span>{isEs ? 'Siguiente' : 'Next'}</span>
+                      <span>{t('next', lang)}</span>
                       <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   ) : (
@@ -441,7 +432,7 @@ export const ScamReportModal: React.FC<ScamReportModalProps> = ({
                       }`}
                     >
                       <Lock className="w-3.5 h-3.5" />
-                      <span>{isEs ? 'Enviar Reporte' : 'Submit report'}</span>
+                      <span>{t('submit_report', lang)}</span>
                     </button>
                   )}
                 </div>
@@ -452,7 +443,7 @@ export const ScamReportModal: React.FC<ScamReportModalProps> = ({
                     onClick={handleClose}
                     className="text-xs text-[#5B6B7A] hover:text-[#1B2733] hover:underline cursor-pointer"
                   >
-                    {isEs ? 'Cancelar' : 'Cancel'}
+                    {t('cancel', lang)}
                   </button>
                 </div>
               </div>
@@ -466,31 +457,25 @@ export const ScamReportModal: React.FC<ScamReportModalProps> = ({
 
               <div className="space-y-2">
                 <h4 className="font-serif font-bold text-base text-[#054F31]">
-                  {isEs ? 'Reporte Recibido' : 'Report Received'}
+                  {t('scam_submitted_title', lang)}
                 </h4>
 
                 {/* EXACT REQUIRED TEXT */}
                 <p className="text-xs text-[#067647] leading-relaxed font-medium">
-                  {isEs
-                    ? `Lo tenemos registrado, y no es su culpa. El caso #${caseId} está abierto. Hemos pausado los pagos salientes mientras revisamos. Cuanto antes informe, mayores serán las probabilidades de recuperar su dinero.`
-                    : `We've got it, and it's not your fault. Case #${caseId} is open. We've paused outgoing payments while we review. The sooner you report, the better the chance we can get money back.`}
+                  {t('scam_submitted_reassurance', lang, { caseId })}
                 </p>
               </div>
 
               <div className="bg-white/80 rounded-lg p-3 border border-[#A6F4C5] text-[11px] text-[#054F31] space-y-1 text-left">
                 <div>
-                  <strong>{isEs ? 'Estado:' : 'Status:'}</strong>{' '}
+                  <strong>{t('scam_status_label', lang)}</strong>{' '}
                   {contactMethod === 'branch'
-                    ? isEs
-                      ? 'Marcado con PRIORIDAD en sucursal'
-                      : 'Flagged as Branch PRIORITY'
-                    : isEs
-                    ? 'Llamada programada con especialista'
-                    : 'Callback scheduled with fraud specialist'}
+                    ? t('scam_status_branch', lang)
+                    : t('scam_status_call', lang)}
                 </div>
                 <div>
-                  <strong>{isEs ? 'Medida de seguridad:' : 'Protection:'}</strong>{' '}
-                  {isEs ? 'Rieles de pago salientes congelados' : 'Outgoing payment rails frozen'}
+                  <strong>{t('scam_protection_label', lang)}</strong>{' '}
+                  {t('scam_protection_notice', lang)}
                 </div>
               </div>
 
@@ -499,7 +484,7 @@ export const ScamReportModal: React.FC<ScamReportModalProps> = ({
                 onClick={handleClose}
                 className="w-full h-12 rounded-lg bg-[#067647] hover:bg-[#054F31] text-white font-semibold text-xs cursor-pointer transition-colors shadow-xs"
               >
-                {isEs ? 'Listo' : 'Done'}
+                {t('done', lang)}
               </button>
             </div>
           )}

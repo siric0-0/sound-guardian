@@ -107,13 +107,19 @@ export const StaffConsole: React.FC<StaffConsoleProps> = ({
   const [caseFilter, setCaseFilter] = useState<'ALL' | 'QUARANTINE' | 'LIGHT' | 'BRANCH' | 'RESOLVED'>('ALL');
   const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
 
-  // Compute KPI metrics from replay
+  // Compute KPI metrics from replay (recompute so no member payment is counted twice)
   const heldCount = queueItems.filter((q) => q.status === 'HELD').length;
   const quarantineCount = queueItems.filter((q) => q.tier === 'QUARANTINE').length;
   const quickChecksCount = queueItems.filter((q) => q.tier === 'LIGHT').length;
-  const dollarsProtected = queueItems
-    .filter((q) => q.status !== 'RELEASED')
-    .reduce((sum, item) => sum + item.amount, 0);
+  const dollarsProtected = useMemo(() => {
+    const uniqueMemberAmounts = new Map<string, number>();
+    queueItems.forEach((item) => {
+      if (item.status !== 'RELEASED') {
+        uniqueMemberAmounts.set(item.memberId, item.amount);
+      }
+    });
+    return Array.from(uniqueMemberAmounts.values()).reduce((sum, amt) => sum + amt, 0);
+  }, [queueItems]);
   const branchPriorityCount = queueItems.filter((q) => q.branchPriority).length;
 
   // Filter queue items for Cases tab
@@ -868,8 +874,8 @@ export const StaffConsole: React.FC<StaffConsoleProps> = ({
           onActionReleaseQuarantine(app1, app2, rsn);
           setIsApprovalModalOpen(false);
         }}
-        amount={activeCase.amount || 1574.18}
-        paymentId={activeCase.paymentId || 'P1003-007'}
+        amount={activeCase.amount || 3006.33}
+        paymentId={activeCase.paymentId || 'C-2026-1003'}
       />
     </div>
   );

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   DemoEvent,
   ArbiterDecision,
@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { maskPhone } from '../../lib/tokenization.ts';
 import { SarahDualPhoneView } from './SarahDualPhoneView.tsx';
+import { t, translateEventType, translateChannel } from '../../lib/dictionary.ts';
 
 interface PhoneAppProps {
   scenarioId: ScenarioId;
@@ -86,6 +87,16 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
 }) => {
   const isEs = lang === 'es';
   const [selectedActivityItem, setSelectedActivityItem] = useState<DemoEvent | null>(null);
+
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== 'undefined' ? window.innerWidth < 640 : false
+  );
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const isQuarantine = decision?.tier === 'QUARANTINE';
   const isLight = decision?.tier === 'LIGHT';
@@ -166,22 +177,30 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
 
   return (
     <div
-      className="relative select-none mx-auto transition-all duration-150
-                 border-[10px] border-slate-900 rounded-[44px] shadow-2xl bg-slate-900
-                 max-sm:border-0 max-sm:rounded-none max-sm:shadow-none max-sm:w-full max-sm:h-full max-sm:max-w-none max-sm:aspect-auto"
-      style={{
-        height: 'min(780px, calc(100vh - 170px))',
-        aspectRatio: '9 / 19.5',
-        width: 'auto',
-      }}
+      className={
+        isMobile
+          ? "w-full max-w-full bg-white relative flex flex-col"
+          : "relative select-none mx-auto transition-all duration-150 border-[10px] border-slate-900 rounded-[44px] shadow-2xl bg-slate-900"
+      }
+      style={
+        isMobile
+          ? { width: '100%', height: 'auto', minHeight: 'calc(100vh - 140px)' }
+          : {
+              height: 'min(780px, calc(100vh - 170px))',
+              aspectRatio: '9 / 19.5',
+              width: 'auto',
+            }
+      }
     >
-      {/* Screen inside radius 34px */}
-      <div className="w-full h-full rounded-[34px] max-sm:rounded-none overflow-hidden flex flex-col bg-white relative">
-        {/* Dynamic-island pill centered at the top (120×30, black) */}
-        <div className="w-[120px] h-[30px] bg-black rounded-full absolute top-2 left-1/2 -translate-x-1/2 z-30 pointer-events-none flex items-center justify-between px-3 max-sm:hidden">
-          <div className="w-2.5 h-2.5 rounded-full bg-slate-900 border border-slate-800" />
-          <div className="w-2.5 h-2.5 rounded-full bg-slate-900/60" />
-        </div>
+      {/* Screen inside radius 34px (none on mobile) */}
+      <div className={`w-full h-full ${isMobile ? 'rounded-none' : 'rounded-[34px]'} overflow-hidden flex flex-col bg-white relative`}>
+        {/* Dynamic-island pill centered at the top (120×30, black) - hidden on mobile */}
+        {!isMobile && (
+          <div className="w-[120px] h-[30px] bg-black rounded-full absolute top-2 left-1/2 -translate-x-1/2 z-30 pointer-events-none flex items-center justify-between px-3">
+            <div className="w-2.5 h-2.5 rounded-full bg-slate-900 border border-slate-800" />
+            <div className="w-2.5 h-2.5 rounded-full bg-slate-900/60" />
+          </div>
+        )}
 
         {/* Status bar 44px tall: time left, signal/wifi/battery icons right (use lucide icons, not "5G 100%" text) */}
         <div className="h-[44px] bg-[#002D72] text-white px-6 flex items-center justify-between text-xs font-semibold shrink-0 relative z-20">
@@ -200,7 +219,7 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
               Sound Credit Union
             </span>
             <span className="text-[10px] text-[#E1F0F8]/80">
-              {isEs ? 'Banca Digital de Sound' : 'Sound Digital Banking'}
+              {t('brand_sub', lang)}
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -210,7 +229,7 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
                 className="text-[10px] bg-white/10 hover:bg-white/20 text-[#E1F0F8] px-2 py-1 rounded transition-colors cursor-pointer"
                 title="Return to story selector"
               >
-                Exit
+                {t('exit', lang)}
               </button>
             )}
             <div className="w-7 h-7 rounded-full bg-[#0082CA] text-white flex items-center justify-center font-bold text-xs">
@@ -230,13 +249,13 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
             {/* Balance Card */}
             <div className="bg-white rounded-xl p-4 border border-[#D0D9E2] shadow-2xs">
               <span className="text-[11px] font-medium text-[#5B6B7A] block">
-                {isEs ? 'Saldo Total Disponible' : 'Total Available Balance'}
+                {t('balance_available', lang)}
               </span>
               <div className="font-mono text-2xl font-bold text-[#002D72] tracking-tight mt-0.5">
                 ${checkingBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </div>
               <div className="mt-2 pt-2 border-t border-[#D0D9E2] flex items-center justify-between text-xs text-[#5B6B7A]">
-                <span>Classic Checking (··9412)</span>
+                <span>{t('classic_checking', lang)}</span>
                 <span className="font-mono font-semibold text-[#1B2733]">
                   ${checkingBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                 </span>
@@ -248,12 +267,10 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
               <div className="bg-[#FEF3F2] border-2 border-[#FECDCA] rounded-xl p-3.5 text-xs text-[#7A271A] space-y-2">
                 <div className="flex items-center gap-2 font-bold text-[#912018]">
                   <ShieldAlert className="w-4 h-4 text-[#B42318] shrink-0" />
-                  <span>{isEs ? 'Destinatario Bloqueado · Acción Requerida' : 'Payee Blocked · Action Required'}</span>
+                  <span>{t('home_quarantine_title', lang)}</span>
                 </div>
                 <p className="text-[11px] leading-relaxed">
-                  {isEs
-                    ? 'Un nuevo destinatario requiere confirmación desde su teléfono previo al cambio.'
-                    : 'A new payee was blocked upfront to protect your money. Check required before money can leave.'}
+                  {t('home_quarantine_body', lang)}
                 </p>
                 <button
                   onClick={() => {
@@ -262,7 +279,7 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
                   }}
                   className="w-full py-2 rounded-lg bg-[#B42318] hover:bg-[#912018] text-white font-semibold text-xs text-center cursor-pointer transition-colors shadow-2xs"
                 >
-                  {isEs ? 'Revisar Destinatario' : 'Review Payee Check'}
+                  {t('home_quarantine_btn', lang)}
                 </button>
               </div>
             )}
@@ -272,12 +289,10 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
               <div className="bg-[#FFFAEB] border-2 border-[#FEDF89] rounded-xl p-3.5 text-xs text-[#7A2E0E] space-y-2">
                 <div className="flex items-center gap-2 font-bold text-[#B54708]">
                   <ShieldCheck className="w-4 h-4 text-[#B54708] shrink-0" />
-                  <span>{isEs ? 'Verificación rápida: ¿fue usted?' : 'Quick check: was this you?'}</span>
+                  <span>{t('home_light_title', lang)}</span>
                 </div>
                 <p className="text-[11px] leading-relaxed">
-                  {isEs
-                    ? `Confirme su pago de $${paymentAmount.toFixed(2)} a ${payeeName}.`
-                    : `Confirm your $${paymentAmount.toFixed(2)} payment to ${payeeName}.`}
+                  {t('home_light_body', lang, { amount: `$${paymentAmount.toFixed(2)}`, payee: payeeName })}
                 </p>
                 <button
                   onClick={() => {
@@ -286,7 +301,7 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
                   }}
                   className="w-full py-2 rounded-lg bg-[#067647] hover:bg-[#054F31] text-white font-semibold text-xs text-center cursor-pointer transition-colors shadow-2xs"
                 >
-                  {isEs ? 'Confirmar Pago (8 segundos)' : 'Review 1-Tap Check'}
+                  {t('home_light_btn', lang)}
                 </button>
               </div>
             )}
@@ -296,12 +311,10 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
               <div className="bg-[#ECFDF3] border-2 border-[#A6F4C5] rounded-xl p-3.5 text-xs text-[#054F31] space-y-1.5">
                 <div className="flex items-center gap-2 font-bold text-[#067647]">
                   <CheckCircle2 className="w-4 h-4 text-[#067647] shrink-0" />
-                  <span>{isEs ? 'Su cuenta está protegida' : 'Your account is secured'}</span>
+                  <span>{t('home_secured_title', lang)}</span>
                 </div>
                 <p className="text-[11px] leading-relaxed">
-                  {isEs
-                    ? 'Destinatario bloqueado y saldo protegido. Ningún fondo salió de su cuenta.'
-                    : 'Unauthorized payee blocked and balances protected. Zero money left your account.'}
+                  {t('home_secured_body', lang)}
                 </p>
               </div>
             )}
@@ -309,12 +322,12 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
             {/* 3 Recent Items */}
             <div className="bg-white rounded-xl p-3.5 border border-[#D0D9E2] space-y-2">
               <div className="flex items-center justify-between text-xs font-semibold text-[#002D72]">
-                <span>{isEs ? 'Actividad Reciente' : 'Recent Activity'}</span>
+                <span>{t('recent_activity', lang)}</span>
                 <button
                   onClick={() => setActiveTab('activity')}
                   className="text-[11px] text-[#0082CA] hover:underline cursor-pointer"
                 >
-                  {isEs ? 'Ver Todo' : 'View all'}
+                  {t('view_all', lang)}
                 </button>
               </div>
               <div className="divide-y divide-[#D0D9E2]">
@@ -328,15 +341,15 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
                     className="py-2 flex items-center justify-between text-xs cursor-pointer hover:bg-slate-50 px-1 rounded transition-colors"
                   >
                     <div>
-                      <div className="font-medium text-[#1B2733]">{ev.event_type}</div>
-                      <div className="text-[10px] text-[#5B6B7A]">{ev.event_timestamp.slice(11, 16)} · {ev.channel}</div>
+                      <div className="font-medium text-[#1B2733]">{translateEventType(ev.event_type, lang)}</div>
+                      <div className="text-[10px] text-[#5B6B7A]">{ev.event_timestamp.slice(11, 16)} · {translateChannel(ev.channel, lang)}</div>
                     </div>
                     {ev.amount && ev.amount > 0 ? (
                       <span className="font-mono font-semibold text-[#002D72]">
                         -${ev.amount.toFixed(2)}
                       </span>
                     ) : (
-                      <span className="text-[10px] text-[#5B6B7A]">Info</span>
+                      <span className="text-[10px] text-[#5B6B7A]">{t('info', lang)}</span>
                     )}
                   </div>
                 ))}
@@ -350,7 +363,7 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
                 className="w-full h-12 rounded-lg bg-[#002D72] hover:bg-[#001D4A] text-white font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors"
               >
                 <Building2 className="w-4 h-4 text-[#0082CA]" />
-                <span>Check Digital Payments Status</span>
+                <span>{t('check_digital_payments', lang)}</span>
               </button>
             ) : (
               <button
@@ -361,7 +374,7 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
                 className="w-full h-12 rounded-lg bg-[#002D72] hover:bg-[#001D4A] text-white font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors"
               >
                 <Send className="w-4 h-4" />
-                <span>{isEs ? 'Enviar Dinero' : 'Send Money'}</span>
+                <span>{t('send_money', lang)}</span>
               </button>
             )}
           </div>
@@ -378,10 +391,10 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
                 </div>
                 <div className="space-y-1.5">
                   <h3 className="font-serif font-bold text-base text-[#002D72]">
-                    No digital payment in this story
+                    {t('no_digital_title', lang)}
                   </h3>
                   <p className="text-xs text-[#5B6B7A] leading-relaxed max-w-xs mx-auto">
-                    James is being coerced in-person to withdraw $7,000 cash at the Tacoma branch. This scam does not use digital banking rails.
+                    {t('no_digital_body', lang)}
                   </p>
                 </div>
                 <div className="space-y-2 pt-2">
@@ -393,14 +406,14 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
                     }}
                     className="w-full h-12 rounded-lg bg-[#002D72] hover:bg-[#001D4A] text-white font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors"
                   >
-                    <span>Open Branch Mode in Staff Console</span>
+                    <span>{t('open_branch_mode', lang)}</span>
                     <ArrowRight className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => setActiveTab('home')}
                     className="w-full text-xs text-[#0082CA] hover:underline cursor-pointer py-1"
                   >
-                    Return to Home
+                    {t('return_to_home', lang)}
                   </button>
                 </div>
               </div>
@@ -410,7 +423,17 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
                 {/* Progress Dot Row */}
                 <div className="bg-white rounded-xl p-3 border border-[#D0D9E2] flex items-center justify-between text-[11px]">
                   <span className="font-semibold text-[#002D72]">
-                    Step {payStep} of 4: {payStep === 1 ? 'Payee' : payStep === 2 ? 'Amount' : payStep === 3 ? 'Review' : 'Result'}
+                    {t('step_progress', lang, {
+                      step: payStep,
+                      label:
+                        payStep === 1
+                          ? t('step_payee', lang)
+                          : payStep === 2
+                          ? t('step_amount', lang)
+                          : payStep === 3
+                          ? t('step_review', lang)
+                          : t('step_result', lang),
+                    })}
                   </span>
                   <div className="flex items-center gap-1.5">
                     {[1, 2, 3, 4].map((step) => (
@@ -433,20 +456,20 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
                   <div className="bg-white rounded-xl p-4 border border-[#D0D9E2] space-y-4">
                     <div>
                       <h3 className="font-serif font-bold text-sm text-[#002D72]">
-                        {isEs ? 'Seleccione o revise el destinatario' : 'Select or Review Payee'}
+                        {t('payee_heading', lang)}
                       </h3>
                       <p className="text-[11px] text-[#5B6B7A]">
-                        {isEs ? 'Pagos P2P o transferencias directas' : 'P2P payments & direct transfers'}
+                        {t('payee_subheading', lang)}
                       </p>
                     </div>
 
                     <div className="p-3 bg-[#F4F8FA] rounded-lg border border-[#D0D9E2] space-y-1">
                       <span className="text-[10px] text-[#5B6B7A] uppercase font-bold tracking-wider">
-                        {isEs ? 'Destinatario Activo' : 'Active Payee'}
+                        {t('active_payee', lang)}
                       </span>
                       <div className="font-bold text-xs text-[#002D72]">{payeeName}</div>
                       <div className="text-[11px] text-amber-700 font-medium">
-                        {isEs ? 'Destinatario nuevo agregado hoy' : 'New payee added today'}
+                        {t('new_payee_today', lang)}
                       </div>
                     </div>
 
@@ -454,7 +477,7 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
                       onClick={() => setPayStep(2)}
                       className="w-full h-12 rounded-lg bg-[#002D72] hover:bg-[#001D4A] text-white font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors"
                     >
-                      <span>{isEs ? 'Continuar al Monto' : 'Continue to Amount'}</span>
+                      <span>{t('continue_to_amount', lang)}</span>
                       <ArrowRight className="w-4 h-4" />
                     </button>
 
@@ -463,7 +486,7 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
                         onClick={() => setActiveTab('home')}
                         className="text-xs text-[#0082CA] hover:underline cursor-pointer"
                       >
-                        {isEs ? 'Volver al Inicio' : 'Back to Home'}
+                        {t('back_to_home', lang)}
                       </button>
                     </div>
                   </div>
@@ -474,10 +497,10 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
                   <div className="bg-white rounded-xl p-4 border border-[#D0D9E2] space-y-4">
                     <div>
                       <h3 className="font-serif font-bold text-sm text-[#002D72]">
-                        {isEs ? 'Monto a transferir' : 'Transfer Amount'}
+                        {t('transfer_amount', lang)}
                       </h3>
                       <p className="text-[11px] text-[#5B6B7A]">
-                        {isEs ? `Para: ${payeeName}` : `To: ${payeeName}`}
+                        {t('to_payee', lang, { payee: payeeName })}
                       </p>
                     </div>
 
@@ -486,7 +509,7 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
                         ${paymentAmount.toFixed(2)}
                       </span>
                       <span className="block text-[11px] text-[#5B6B7A] mt-1">
-                        From: Classic Checking (··9412) · Rail: {paymentRail}
+                        {t('from_rail_note', lang, { rail: paymentRail })}
                       </span>
                     </div>
 
@@ -494,7 +517,7 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
                       onClick={() => setPayStep(3)}
                       className="w-full h-12 rounded-lg bg-[#002D72] hover:bg-[#001D4A] text-white font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors"
                     >
-                      <span>{isEs ? 'Revisar Pago' : 'Review Payment'}</span>
+                      <span>{t('review_payment_btn', lang)}</span>
                       <ArrowRight className="w-4 h-4" />
                     </button>
 
@@ -503,7 +526,7 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
                         onClick={() => setPayStep(1)}
                         className="text-xs text-[#0082CA] hover:underline cursor-pointer"
                       >
-                        {isEs ? 'Volver al Destinatario' : 'Back to Payee'}
+                        {t('back_to_payee', lang)}
                       </button>
                     </div>
                   </div>
@@ -515,25 +538,24 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
                     {/* ALWAYS VISIBLE PAYMENT DETAILS CARD FILLED FROM CSV */}
                     <div className="bg-white rounded-xl p-3.5 border border-[#D0D9E2] space-y-2 shadow-2xs">
                       <div className="flex items-center justify-between text-xs pb-1.5 border-b border-[#D0D9E2]">
-                        <span className="text-[#5B6B7A]">From Account:</span>
-                        <strong className="text-[#002D72]">Classic Checking (··9412)</strong>
+                        <span className="text-[#5B6B7A]">{t('from_account_label', lang)}</span>
+                        <strong className="text-[#002D72]">{t('classic_checking', lang)}</strong>
                       </div>
                       <div className="flex items-center justify-between text-xs pb-1.5 border-b border-[#D0D9E2]">
-                        <span className="text-[#5B6B7A]">To Payee:</span>
+                        <span className="text-[#5B6B7A]">{t('to_payee_label', lang)}</span>
                         <strong className="text-[#002D72]">{payeeName}</strong>
                       </div>
                       <div className="flex items-center justify-between text-xs pb-1.5 border-b border-[#D0D9E2]">
-                        <span className="text-[#5B6B7A]">Amount:</span>
+                        <span className="text-[#5B6B7A]">{t('amount_label', lang)}</span>
                         <strong className="font-mono text-sm text-[#002D72]">${paymentAmount.toFixed(2)}</strong>
                       </div>
                       <div className="flex items-center justify-between text-xs">
-                        <span className="text-[#5B6B7A]">Payment Rail:</span>
+                        <span className="text-[#5B6B7A]">{t('payment_rail_label', lang)}</span>
                         <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-slate-100 text-[#002D72] font-semibold">
                           {paymentRail}
                         </span>
                       </div>
                     </div>
-
 
                     {/* LEGITIMATE MOVER: LIGHT TIER CHECK */}
                     {scenarioId === 'mover_legitimate' && !isMoverConfirmed && (
@@ -542,17 +564,16 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
                           <ShieldCheck className="w-5 h-5 text-[#B54708] shrink-0" />
                           <div>
                             <h4 className="font-serif font-bold text-sm text-[#93370D]">
-                              {isEs ? 'Verificación rápida: ¿fue usted?' : 'Quick check: was this you?'}
+                              {t('light_title', lang)}
                             </h4>
                             <span className="text-[10px] text-[#7A2E0E]">
-                              {isEs ? 'Comprobación de 1 toque en 8 segundos' : '1-tap check resolves in 8 seconds'}
+                              {t('light_sub', lang)}
                             </span>
                           </div>
                         </div>
 
                         <p className="text-[11px] leading-relaxed">
-                          You recently reset your password and updated your address, and this is a new payee.
-                          Tap below to confirm this ${paymentAmount.toFixed(2)} payment.
+                          {t('light_body', lang, { amount: `$${paymentAmount.toFixed(2)}` })}
                         </p>
 
                         {/* Primary 48px Navy Button */}
@@ -564,7 +585,7 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
                           className="w-full h-12 rounded-lg bg-[#002D72] hover:bg-[#001D4A] text-white font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors"
                         >
                           <CheckCircle2 className="w-4 h-4" />
-                          <span>{isEs ? 'Sí, fui yo (Confirmar y Enviar)' : 'Yes, this was me (Confirm & Send)'}</span>
+                          <span>{t('light_yes', lang)}</span>
                         </button>
 
                         <div className="text-center pt-1">
@@ -575,7 +596,7 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
                             }}
                             className="text-xs text-[#B42318] hover:underline cursor-pointer"
                           >
-                            {isEs ? 'No, no fui yo (Detener)' : "No, this wasn't me"}
+                            {t('light_no', lang)}
                           </button>
                         </div>
                       </div>
@@ -585,13 +606,13 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
                     {(isFrozen || isMoverConfirmed) && (
                       <div className="bg-white rounded-xl p-4 border border-[#D0D9E2] text-center space-y-2">
                         <span className="text-xs text-[#067647] font-semibold block">
-                          Status: {isFrozen ? 'Account Protected & Rails Frozen' : 'Payment Approved & Dispatched'}
+                          {isFrozen ? t('status_protected', lang) : t('status_approved', lang)}
                         </span>
                         <button
                           onClick={() => setPayStep(4)}
                           className="w-full h-12 rounded-lg bg-[#002D72] text-white font-semibold text-xs cursor-pointer shadow-xs hover:bg-[#001D4A] transition-colors"
                         >
-                          View Outcome Screen
+                          {t('view_outcome', lang)}
                         </button>
                       </div>
                     )}
@@ -602,7 +623,7 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
                         onClick={() => setPayStep(2)}
                         className="text-xs text-[#0082CA] hover:underline cursor-pointer"
                       >
-                        Back to Amount
+                        {t('back_to_amount', lang)}
                       </button>
                     </div>
                   </div>
@@ -618,32 +639,28 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
                     {isFrozen ? (
                       <>
                         <h3 className="font-serif font-bold text-base text-[#054F31]">
-                          {isEs ? 'Su cuenta está protegida' : 'Your account is secured'}
+                          {t('home_secured_title', lang)}
                         </h3>
                         <p className="text-[11px] leading-relaxed text-[#067647]">
-                          {isEs
-                            ? 'Bloqueamos adiciones de destinatarios no autorizados y detuvimos los pagos. Su saldo está a salvo.'
-                            : "We've locked unauthorized payee additions, stopped outgoing payments, and protected your balance."}
+                          {t('home_secured_body', lang)}
                         </p>
                       </>
                     ) : isMoverConfirmed ? (
                       <>
                         <h3 className="font-serif font-bold text-base text-[#054F31]">
-                          {isEs ? 'Pago enviado, tomó 8 segundos' : 'Payment sent, took 8 seconds'}
+                          {t('outcome_sent', lang)}
                         </h3>
                         <p className="text-[11px] leading-relaxed text-[#067647]">
-                          {isEs
-                            ? 'Listo. Su pago está en camino. Gracias por confirmar.'
-                            : 'Done. Your payment is on its way. Thanks for confirming. This took 8 seconds.'}
+                          {t('outcome_sent_body', lang)}
                         </p>
                       </>
                     ) : (
                       <>
                         <h3 className="font-serif font-bold text-base text-[#054F31]">
-                          {isEs ? 'Pago procesado' : 'Payment processed'}
+                          {t('outcome_processed', lang)}
                         </h3>
                         <p className="text-[11px] leading-relaxed text-[#067647]">
-                          {isEs ? 'Su transacción ha sido enviada.' : 'Your transaction has been submitted.'}
+                          {t('outcome_processed_body', lang)}
                         </p>
                       </>
                     )}
@@ -655,7 +672,7 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
                       }}
                       className="w-full h-10 rounded-lg bg-[#067647] hover:bg-[#054F31] text-white font-semibold text-xs cursor-pointer transition-colors shadow-2xs"
                     >
-                      {isEs ? 'Volver al Inicio' : 'Back to Home'}
+                      {t('back_to_home', lang)}
                     </button>
                   </div>
                 )}
@@ -669,10 +686,10 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-serif font-bold text-sm text-[#002D72]">
-                {isEs ? 'Registro de Actividad' : 'Activity History'}
+                {t('activity_history', lang)}
               </h3>
               <span className="text-[11px] text-[#5B6B7A]">
-                {events.length} events
+                {t('events_count', lang, { count: events.length })}
               </span>
             </div>
 
@@ -684,9 +701,9 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
                   className="p-3 text-xs flex items-center justify-between hover:bg-slate-50 cursor-pointer transition-colors"
                 >
                   <div>
-                    <div className="font-semibold text-[#1B2733]">{ev.event_type}</div>
+                    <div className="font-semibold text-[#1B2733]">{translateEventType(ev.event_type, lang)}</div>
                     <div className="text-[10px] text-[#5B6B7A]">
-                      {ev.event_timestamp.slice(0, 16)} · {ev.channel}
+                      {ev.event_timestamp.slice(0, 16)} · {translateChannel(ev.channel, lang)}
                     </div>
                   </div>
                   {ev.amount && ev.amount > 0 ? (
@@ -695,7 +712,7 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
                     </span>
                   ) : (
                     <span className="text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
-                      Event
+                      {t('event_badge', lang)}
                     </span>
                   )}
                 </div>
@@ -708,7 +725,7 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
                 onClick={() => setActiveTab('home')}
                 className="text-xs text-[#0082CA] hover:underline cursor-pointer"
               >
-                Return to Home
+                {t('return_to_home', lang)}
               </button>
             </div>
 
@@ -717,7 +734,7 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
               <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
                 <div className="bg-white rounded-xl p-4 max-w-xs w-full border border-[#D0D9E2] shadow-xl space-y-3 text-xs">
                   <div className="flex items-center justify-between border-b pb-2">
-                    <strong className="text-[#002D72]">{selectedActivityItem.event_type}</strong>
+                    <strong className="text-[#002D72]">{translateEventType(selectedActivityItem.event_type, lang)}</strong>
                     <button
                       onClick={() => setSelectedActivityItem(null)}
                       className="p-1 text-slate-400 hover:text-slate-600 cursor-pointer"
@@ -726,16 +743,16 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
                     </button>
                   </div>
                   <div className="space-y-1 text-[#5B6B7A] text-[11px]">
-                    <div>Time: {selectedActivityItem.event_timestamp}</div>
-                    <div>Channel: {selectedActivityItem.channel}</div>
-                    {selectedActivityItem.amount && <div>Amount: ${selectedActivityItem.amount.toFixed(2)}</div>}
-                    <div>Note: {selectedActivityItem.event_note || 'Standard log entry'}</div>
+                    <div>{t('time_label', lang)} {selectedActivityItem.event_timestamp}</div>
+                    <div>{t('channel_label', lang)} {translateChannel(selectedActivityItem.channel, lang)}</div>
+                    {selectedActivityItem.amount && <div>{t('amount_label', lang)} ${selectedActivityItem.amount.toFixed(2)}</div>}
+                    <div>{t('note_label', lang)} {selectedActivityItem.event_note || t('standard_log_entry', lang)}</div>
                   </div>
                   <button
                     onClick={() => setSelectedActivityItem(null)}
                     className="w-full h-9 rounded bg-[#002D72] text-white font-semibold text-xs cursor-pointer"
                   >
-                    Close
+                    {t('close', lang)}
                   </button>
                 </div>
               </div>
@@ -748,10 +765,10 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
           <div className="space-y-3.5">
             <div>
               <h3 className="font-serif font-bold text-sm text-[#002D72]">
-                {isEs ? 'Soporte y Seguridad' : 'Security & Help'}
+                {t('security_and_help', lang)}
               </h3>
               <p className="text-[11px] text-[#5B6B7A]">
-                {isEs ? 'Estamos con usted en todo momento' : 'We are here to protect you 24/7'}
+                {t('here_to_protect', lang)}
               </p>
             </div>
 
@@ -761,17 +778,17 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
               className="w-full h-12 rounded-xl border-2 border-[#D83B01] bg-red-50 hover:bg-red-100 text-[#D83B01] font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-2xs"
             >
               <AlertTriangle className="w-4 h-4 text-[#D83B01]" />
-              <span>{isEs ? "Creo que he sido víctima de una estafa" : "I think I've been scammed"}</span>
+              <span>{t('think_scammed', lang)}</span>
             </button>
 
             {/* Talk to someone */}
             <div className="bg-white rounded-xl p-3.5 border border-[#D0D9E2] space-y-1">
               <span className="text-[11px] font-semibold text-[#002D72] flex items-center gap-1.5">
                 <PhoneCall className="w-3.5 h-3.5 text-[#0082CA]" />
-                <span>Talk to someone</span>
+                <span>{t('talk_to_someone', lang)}</span>
               </span>
               <p className="text-[11px] text-[#5B6B7A]">
-                Direct line to Sound Credit Union Fraud Specialists:
+                {t('direct_fraud_line', lang)}
               </p>
               <a
                 href="tel:8005628130"
@@ -785,17 +802,17 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
             <div className="bg-white rounded-xl p-3.5 border border-[#D0D9E2] space-y-2">
               <span className="text-[11px] font-semibold text-[#002D72] flex items-center gap-1.5">
                 <Building2 className="w-3.5 h-3.5 text-[#0082CA]" />
-                <span>Visit a branch</span>
+                <span>{t('visit_branch', lang)}</span>
               </span>
               <p className="text-[11px] text-[#5B6B7A]">
-                26 Puget Sound branches with in-person identity verification.
+                {t('branches_desc', lang)}
               </p>
               {onRequestAtBranch && (
                 <button
                   onClick={onRequestAtBranch}
                   className="w-full py-2 rounded-lg bg-[#F4F8FA] border border-[#D0D9E2] hover:bg-[#E1F0F8] text-[#002D72] font-semibold text-xs cursor-pointer transition-colors"
                 >
-                  {memberActions.branchPriority ? 'Priority Flagged for Branch' : 'Notify Branch of In-Person Visit'}
+                  {memberActions.branchPriority ? t('priority_flagged_branch', lang) : t('notify_branch_visit', lang)}
                 </button>
               )}
             </div>
@@ -806,7 +823,7 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
                 onClick={() => setActiveTab('home')}
                 className="text-xs text-[#0082CA] hover:underline cursor-pointer"
               >
-                Return to Home
+                {t('return_to_home', lang)}
               </button>
             </div>
           </div>
@@ -823,7 +840,7 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
             }`}
           >
             <Home className="w-5 h-5" />
-            <span className="text-[11px]">{isEs ? 'Inicio' : 'Home'}</span>
+            <span className="text-[11px]">{t('tab_home', lang)}</span>
           </button>
 
           <button
@@ -838,7 +855,7 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
             }`}
           >
             <Send className="w-5 h-5" />
-            <span className="text-[11px]">{isEs ? 'Pagar' : 'Pay'}</span>
+            <span className="text-[11px]">{t('tab_pay', lang)}</span>
           </button>
 
           <button
@@ -848,7 +865,7 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
             }`}
           >
             <List className="w-5 h-5" />
-            <span className="text-[11px]">{isEs ? 'Actividad' : 'Activity'}</span>
+            <span className="text-[11px]">{t('tab_activity', lang)}</span>
           </button>
 
           <button
@@ -858,7 +875,7 @@ export const PhoneApp: React.FC<PhoneAppProps> = ({
             }`}
           >
             <HelpCircle className="w-5 h-5" />
-            <span className="text-[11px]">{isEs ? 'Ayuda' : 'Help'}</span>
+            <span className="text-[11px]">{t('tab_help', lang)}</span>
           </button>
         </div>
         {/* 5px home indicator bar under it (134px wide, rounded) */}

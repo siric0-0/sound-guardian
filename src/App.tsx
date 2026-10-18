@@ -295,6 +295,7 @@ export default function App() {
           currentEvent.payment_id || 'P1003-007',
           'P1003-007',
           'P1003-008',
+          'C-2026-1003',
         ])),
         createdCases: Array.from(new Set([...prev.staffActions.createdCases, 'C-2026-1003'])),
       },
@@ -315,7 +316,12 @@ export default function App() {
       memberActions: { ...prev.memberActions, fastPathRequested: false },
       staffActions: {
         ...prev.staffActions,
-        releasedPayments: [...prev.staffActions.releasedPayments, currentEvent.payment_id || 'P1003-007'],
+        releasedPayments: Array.from(new Set([
+          ...prev.staffActions.releasedPayments,
+          currentEvent.payment_id || 'P1003-007',
+          'P1003-007',
+          'C-2026-1003',
+        ])),
       },
     }));
     addAuditEntry(
@@ -332,7 +338,12 @@ export default function App() {
       memberActions: { ...prev.memberActions, confirmedMover: true },
       staffActions: {
         ...prev.staffActions,
-        releasedPayments: [...prev.staffActions.releasedPayments, currentEvent.payment_id || 'P1039-002'],
+        releasedPayments: Array.from(new Set([
+          ...prev.staffActions.releasedPayments,
+          currentEvent.payment_id || 'P1039-002',
+          'P1039-002',
+          'C-2026-1039',
+        ])),
       },
     }));
     addAuditEntry(
@@ -349,7 +360,12 @@ export default function App() {
       memberActions: { ...prev.memberActions, confirmedMover: false, frozen: true },
       staffActions: {
         ...prev.staffActions,
-        stoppedPayments: [...prev.staffActions.stoppedPayments, currentEvent.payment_id || 'P1039-002'],
+        stoppedPayments: Array.from(new Set([
+          ...prev.staffActions.stoppedPayments,
+          currentEvent.payment_id || 'P1039-002',
+          'P1039-002',
+          'C-2026-1039',
+        ])),
       },
     }));
     addAuditEntry(
@@ -366,7 +382,11 @@ export default function App() {
       memberActions: { ...prev.memberActions, cancelledJames: true },
       staffActions: {
         ...prev.staffActions,
-        stoppedPayments: [...prev.staffActions.stoppedPayments, 'P1004-001'],
+        stoppedPayments: Array.from(new Set([
+          ...prev.staffActions.stoppedPayments,
+          'P1004-001',
+          'C-2026-1004',
+        ])),
       },
     }));
     addAuditEntry(
@@ -385,7 +405,13 @@ export default function App() {
       memberActions: { ...prev.memberActions, frozen: true },
       staffActions: {
         ...prev.staffActions,
-        stoppedPayments: [...prev.staffActions.stoppedPayments, currentEvent.payment_id || 'P1003-007'],
+        stoppedPayments: Array.from(new Set([
+          ...prev.staffActions.stoppedPayments,
+          currentEvent.payment_id || 'P1003-007',
+          'P1003-007',
+          'P1003-008',
+          'C-2026-1003',
+        ])),
       },
     }));
     addAuditEntry(
@@ -405,7 +431,12 @@ export default function App() {
       ...prev,
       staffActions: {
         ...prev.staffActions,
-        releasedPayments: [...prev.staffActions.releasedPayments, currentEvent.payment_id || 'P1003-007'],
+        releasedPayments: Array.from(new Set([
+          ...prev.staffActions.releasedPayments,
+          currentEvent.payment_id || 'P1003-007',
+          'P1003-007',
+          'C-2026-1003',
+        ])),
       },
     }));
     addAuditEntry(
@@ -504,11 +535,11 @@ export default function App() {
     setCurrentScreen('story_picker');
   };
 
-  // Staff queue items computed dynamically for all 3 personas
+  // Staff queue items computed dynamically for all 3 personas (one member = one case)
   const queueItems = useMemo<QueueItem[]>(() => {
     const list: QueueItem[] = [
       {
-        paymentId: 'P1004-001',
+        paymentId: 'C-2026-1004',
         memberId: 'M1004',
         memberToken: tokenizeMemberId('M1004'),
         amount: 7000.0,
@@ -525,69 +556,49 @@ export default function App() {
           { id: 'E1004-001', time: '11:30', type: 'Member Inquiry', detail: 'Inquired on daily cash limits & wire speed' },
           { id: 'E1004-002', time: '16:17', type: 'Payment Initiated', detail: 'In-branch $7,000 cash withdrawal attempt' },
         ],
-        status: session.memberActions.cancelledJames || session.staffActions.stoppedPayments.includes('P1004-001')
+        status: session.memberActions.cancelledJames ||
+          session.staffActions.stoppedPayments.includes('P1004-001') ||
+          session.staffActions.stoppedPayments.includes('C-2026-1004')
           ? 'STOPPED'
           : 'HELD',
         timestamp: '2026-10-15 16:17:00',
       },
       {
-        paymentId: 'P1003-007',
+        paymentId: 'C-2026-1003',
         memberId: 'M1003',
         memberToken: tokenizeMemberId('M1003'),
-        amount: 1574.18,
+        amount: 3006.33,
         rail: 'P2P',
         tier: 'QUARANTINE',
         reasonCode: 'RESET_PLUS_EMAIL_PHONE_CHANGE_NEW_PAYEE',
-        reasonPlain: 'Password reset + Email/Phone change + New Payee (enrolled 22:19)',
+        reasonPlain: 'Password reset + Email/Phone change + New Payee ($1,574.18 + $1,432.15)',
         timeLeft: '3h 38m',
-        isAfterHours: true,
-        isNextBusinessHours: true,
-        branchPriority: !!session.memberActions.branchPriority,
-        existingRiskScore: 84,
-        flaggedEvents: [
-          { id: 'E1', time: '22:09', type: 'Password Reset', detail: 'Mobile self-service reset' },
-          { id: 'E2', time: '22:14', type: 'Email Change', detail: 'Notice to sarah.m****@email.com' },
-          { id: 'E3', time: '22:15', type: 'Phone Change', detail: 'Attacker phone (555) 019-2834' },
-          { id: 'E4', time: '22:19', type: 'Recipient Added', detail: 'New payee quick_transfer_p2p enrolled' },
-        ],
-        status: session.memberActions.frozen ||
-        (session.scenarioId === 'sarah_ato' && session.stepIndex >= 8) ||
-        session.staffActions.stoppedPayments.includes('P1003-007')
-          ? 'STOPPED'
-          : session.staffActions.releasedPayments.includes('P1003-007')
-          ? 'RELEASED'
-          : 'HELD',
-        timestamp: '2026-10-15 22:22:00',
-      },
-      {
-        paymentId: 'P1003-008',
-        memberId: 'M1003',
-        memberToken: tokenizeMemberId('M1003'),
-        amount: 1432.15,
-        rail: 'P2P',
-        tier: 'QUARANTINE',
-        reasonCode: 'HIGH_VELOCITY_DRAIN_UNCONFIRMED_PAYEE',
-        reasonPlain: 'Second transfer in rapid succession (8m delta) to unconfirmed payee',
-        timeLeft: '3h 46m',
         isAfterHours: true,
         isNextBusinessHours: true,
         branchPriority: !!session.memberActions.branchPriority,
         existingRiskScore: 89,
         flaggedEvents: [
-          { id: 'E5', time: '22:19', type: 'Recipient Added', detail: 'Unconfirmed payee quick_transfer_p2p' },
-          { id: 'E6', time: '22:22', type: 'Payment Initiated', detail: '1st P2P transfer ($1,574.18) blocked' },
-          { id: 'E7', time: '22:30', type: 'Payment Initiated', detail: '2nd P2P transfer ($1,432.15) blocked' },
+          { id: 'E1', time: '22:09', type: 'Password Reset', detail: 'Mobile self-service reset' },
+          { id: 'E2', time: '22:14', type: 'Email Change', detail: 'Notice to sarah.m****@email.com' },
+          { id: 'E3', time: '22:15', type: 'Phone Change', detail: 'Attacker phone (555) 019-2834' },
+          { id: 'E4', time: '22:19', type: 'Recipient Added', detail: 'New payee quick_transfer_p2p enrolled' },
+          { id: 'E6', time: '22:22', type: 'Payment Initiated', detail: '1st P2P transfer ($1,574.18) quarantined' },
+          { id: 'E7', time: '22:30', type: 'Payment Initiated', detail: '2nd P2P transfer ($1,432.15) quarantined' },
         ],
         status: session.memberActions.frozen ||
         (session.scenarioId === 'sarah_ato' && session.stepIndex >= 8) ||
         session.staffActions.stoppedPayments.includes('P1003-007') ||
-        session.staffActions.stoppedPayments.includes('P1003-008')
+        session.staffActions.stoppedPayments.includes('P1003-008') ||
+        session.staffActions.stoppedPayments.includes('C-2026-1003')
           ? 'STOPPED'
+          : session.staffActions.releasedPayments.includes('P1003-007') ||
+            session.staffActions.releasedPayments.includes('C-2026-1003')
+          ? 'RELEASED'
           : 'HELD',
-        timestamp: '2026-10-15 22:30:00',
+        timestamp: '2026-10-15 22:22:00',
       },
       {
-        paymentId: 'P1039-002',
+        paymentId: 'C-2026-1039',
         memberId: 'M1039',
         memberToken: tokenizeMemberId('M1039'),
         amount: 4151.68,
@@ -605,46 +616,38 @@ export default function App() {
           { id: 'EM2', time: 'Oct 5, 14:28', type: 'Address Change', detail: '1420 5th Ave Seattle (Phone untouched)' },
           { id: 'EM3', time: 'Oct 6, 09:15', type: 'Recipient Added', detail: 'Belltown Properties LLC' },
         ],
-        status: session.staffActions.releasedPayments.includes('P1039-002')
+        status: session.staffActions.releasedPayments.includes('P1039-002') ||
+          session.staffActions.releasedPayments.includes('C-2026-1039')
           ? 'RELEASED'
           : 'HELD',
         timestamp: '2026-10-06 09:20:00',
       },
     ];
 
-    // If emergency scam report was submitted by member, create a prioritized case in queue
+    // Submitting a scam report updates the existing case for that member in-place
     if (session.memberActions.scamReported) {
-      const memberLast4 = (scenarioDef.memberId.replace(/\D/g, '') || '1003').slice(-4);
+      const activeMemberId = scenarioDef.memberId;
       const isBranch = !!session.memberActions.branchPriority;
-      const reportedCaseId = `C-2026-${memberLast4}`;
+      const existingCase = list.find((item) => item.memberId === activeMemberId);
 
-      // Only add if not already in list
-      if (!list.some((item) => item.paymentId === reportedCaseId)) {
-        list.unshift({
-          paymentId: reportedCaseId,
-          memberId: scenarioDef.memberId,
-          memberToken: tokenizeMemberId(scenarioDef.memberId),
-          amount: currentEvent.amount || (scenarioDef.memberId === 'M1003' ? 3006.33 : scenarioDef.memberId === 'M1039' ? 4151.68 : 7000.0),
-          rail: currentEvent.payment_rail || (scenarioDef.memberId === 'M1004' ? 'Cash' : scenarioDef.memberId === 'M1039' ? 'ACH' : 'P2P'),
-          tier: 'QUARANTINE',
-          reasonCode: 'MEMBER_EMERGENCY_SCAM_REPORT',
-          reasonPlain: `Member emergency scam report: ${isBranch ? 'In-branch visit planned (PRIORITY)' : 'Phone callback requested'}. Outgoing rails paused.`,
-          timeLeft: isBranch ? 'Visiting branch now' : 'Callback requested',
-          isAfterHours: false,
-          isNextBusinessHours: false,
-          branchPriority: isBranch,
-          existingRiskScore: 95,
-          flaggedEvents: [
-            {
-              id: `SCAM-${memberLast4}`,
-              time: 'Now',
-              type: 'Emergency Scam Reported',
-              detail: `Member self-service report submitted (${isBranch ? 'Branch Priority' : 'Phone'})`,
-            },
-          ],
-          status: 'HELD',
-          timestamp: new Date().toISOString(),
-        });
+      if (existingCase) {
+        if (!existingCase.reasonPlain.includes('Member reported')) {
+          existingCase.reasonPlain += ' · Member reported';
+        }
+        if (isBranch) {
+          existingCase.branchPriority = true;
+          existingCase.timeLeft = 'Visiting branch now (PRIORITY)';
+        } else {
+          existingCase.timeLeft = 'Callback requested · Member reported';
+        }
+        if (!existingCase.flaggedEvents.some((e) => e.id.startsWith('SCAM-REPORT'))) {
+          existingCase.flaggedEvents.unshift({
+            id: `SCAM-REPORT-${activeMemberId}`,
+            time: 'Now',
+            type: 'Emergency Scam Reported',
+            detail: `Member self-service report submitted (${isBranch ? 'Branch Priority' : 'Phone'})`,
+          });
+        }
       }
     }
 
@@ -833,12 +836,19 @@ export default function App() {
                     onActionCreateCase={handleStaffCreateCase}
                     onActionRequestRecall={handleStaffRequestRecall}
                     onAddAssistedNote={handleAddAssistedNote}
-                    isStopped={session.staffActions.stoppedPayments.includes(
-                      currentEvent.payment_id || 'P1003-007'
-                    )}
-                    isReleased={session.staffActions.releasedPayments.includes(
-                      currentEvent.payment_id || 'P1003-007'
-                    )}
+                    isStopped={
+                      session.staffActions.stoppedPayments.includes(
+                        currentEvent.payment_id || 'P1003-007'
+                      ) ||
+                      session.staffActions.stoppedPayments.includes('C-2026-1003') ||
+                      (session.scenarioId === 'sarah_ato' && (session.stepIndex >= 8 || !!session.memberActions.frozen))
+                    }
+                    isReleased={
+                      session.staffActions.releasedPayments.includes(
+                        currentEvent.payment_id || 'P1003-007'
+                      ) ||
+                      session.staffActions.releasedPayments.includes('C-2026-1003')
+                    }
                     isCaseCreated={
                       session.staffActions.createdCases.includes('C-2026-1003') ||
                       (session.scenarioId === 'sarah_ato' && session.stepIndex >= 8) ||
