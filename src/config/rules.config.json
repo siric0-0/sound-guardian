@@ -1,0 +1,35 @@
+{
+  "rule_version": "2026.10.1-prod",
+  "rule_name": "Sound Guardian Deterministic Sentry & Arbiter Rules",
+  "effective_date": "2026-10-01",
+  "description": "Deterministic shift-left security rules protecting members at payee enrollment and payment initiation without demographic bias.",
+  "windows": {
+    "password_reset_days": 7,
+    "contact_channel_change_days": 30,
+    "address_change_days": 30,
+    "pre_change_lookup_days": 90,
+    "light_hold_duration_hours": 4
+  },
+  "thresholds": {
+    "reset_days": 7,
+    "contact_change_days": 30,
+    "address_change_days": 30,
+    "pre_change_lookup_days": 90,
+    "hold_hours": 4
+  },
+  "tier_names": {
+    "QUARANTINE": "QUARANTINE",
+    "LIGHT": "LIGHT",
+    "NONE": "NONE"
+  },
+  "actions": {
+    "QUARANTINE": "BLOCK_PAYEE_PENDING_CONFIRMATION",
+    "LIGHT": "ONE_TAP_VERIFY",
+    "NONE": "PROCESS_NORMALLY"
+  },
+  "reason_codes": {
+    "QUARANTINE": "RESET_PLUS_EMAIL_PHONE_CHANGE_NEW_PAYEE",
+    "LIGHT": "RESET_PLUS_ADDRESS_CHANGE_NEW_PAYEE",
+    "NONE": "STANDARD_ACTIVITY"
+  }
+}

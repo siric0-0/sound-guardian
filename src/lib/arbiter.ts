@@ -1,4 +1,5 @@
-import { SentrySignals, ArbiterDecision } from '../types.ts';
+import { SentrySignals, ArbiterDecision, TierType, ActionType } from '../types.ts';
+import rulesConfig from '../config/rules.config.json';
 
 export function runArbiter(signals: SentrySignals): ArbiterDecision {
   const {
@@ -24,10 +25,10 @@ export function runArbiter(signals: SentrySignals): ArbiterDecision {
     (recipient_status === 'New' || trigger_event_type === 'Recipient Added')
   ) {
     const citations = [
-      'password_reset_within_7d',
+      `password_reset_within_${rulesConfig.windows.password_reset_days}d`,
       ...contact_channel_changed_within_30d.map((c) => `${c} Change`),
       'recipient_enrolled (New 0d)',
-      'sound_pre_change_90d_contact_history',
+      `sound_pre_change_${rulesConfig.windows.pre_change_lookup_days}d_contact_history`,
     ];
 
     const flaggedEvents = [
@@ -59,9 +60,9 @@ export function runArbiter(signals: SentrySignals): ArbiterDecision {
 
     return {
       payment_id,
-      tier: 'QUARANTINE',
-      action: 'BLOCK_PAYEE_PENDING_CONFIRMATION',
-      reason_code: 'RESET_PLUS_EMAIL_PHONE_CHANGE_NEW_PAYEE',
+      tier: rulesConfig.tier_names.QUARANTINE as TierType,
+      action: rulesConfig.actions.QUARANTINE as ActionType,
+      reason_code: rulesConfig.reason_codes.QUARANTINE,
       reason_plain:
         'Password reset followed by dual contact update (Email + Phone) within 30 days. New payee enrollment blocked pending automated pre-change verification. Payee cannot receive money.',
       confirm_channel: 'PHONE_ON_FILE_BEFORE_CHANGE',
@@ -71,6 +72,7 @@ export function runArbiter(signals: SentrySignals): ArbiterDecision {
       citations,
       existing_risk_score: 84, // Existing legacy fraud score for side-by-side comparison
       flagged_events: flaggedEvents,
+      rule_version: rulesConfig.rule_version,
     };
   }
 
@@ -81,8 +83,8 @@ export function runArbiter(signals: SentrySignals): ArbiterDecision {
     recipient_status === 'New'
   ) {
     const citations = [
-      'password_reset_within_7d',
-      'address_only_change_within_30d',
+      `password_reset_within_${rulesConfig.windows.password_reset_days}d`,
+      `address_only_change_within_${rulesConfig.windows.address_change_days}d`,
       'recipient_status (New)',
     ];
 
@@ -109,27 +111,28 @@ export function runArbiter(signals: SentrySignals): ArbiterDecision {
 
     return {
       payment_id,
-      tier: 'LIGHT',
-      action: 'ONE_TAP_VERIFY',
-      reason_code: 'RESET_PLUS_ADDRESS_CHANGE_NEW_PAYEE',
+      tier: rulesConfig.tier_names.LIGHT as TierType,
+      action: rulesConfig.actions.LIGHT as ActionType,
+      reason_code: rulesConfig.reason_codes.LIGHT,
       reason_plain:
         'Password reset accompanied by address update only. Primary phone remains verified. One-tap payee authorization dispatched to member.',
       confirm_channel: 'UNCHANGED_PHONE_ON_FILE',
       confirm_target_masked: '•••-•••-4821',
-      hold_expires_at: '4h 00m',
+      hold_expires_at: `${rulesConfig.windows.light_hold_duration_hours}h 00m`,
       can_sound_stop: false,
       citations,
       existing_risk_score: 42,
       flagged_events: flaggedEvents,
+      rule_version: rulesConfig.rule_version,
     };
   }
 
   // Rule 3: NO_ACTION
   return {
     payment_id,
-    tier: 'NONE',
-    action: 'PROCESS_NORMALLY',
-    reason_code: 'STANDARD_ACTIVITY',
+    tier: rulesConfig.tier_names.NONE as TierType,
+    action: rulesConfig.actions.NONE as ActionType,
+    reason_code: rulesConfig.reason_codes.NONE,
     reason_plain: 'Activity within baseline parameters. Payee and payment approved.',
     confirm_channel: 'NONE',
     confirm_target_masked: '',
@@ -137,5 +140,6 @@ export function runArbiter(signals: SentrySignals): ArbiterDecision {
     can_sound_stop: false,
     citations: ['standard_baseline'],
     existing_risk_score: 12,
+    rule_version: rulesConfig.rule_version,
   };
 }

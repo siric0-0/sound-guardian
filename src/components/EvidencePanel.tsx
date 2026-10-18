@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ShieldCheck,
   CheckCircle2,
@@ -12,7 +12,13 @@ import {
   Info,
   Sparkles,
   ArrowRight,
+  Code2,
+  Sliders,
+  Copy,
+  Check,
 } from 'lucide-react';
+import rulesConfig from '../config/rules.config.json';
+import fallbackEvaluation from '../../public/data/evaluation.json';
 
 interface EvidencePanelProps {
   isOpen?: boolean;
@@ -23,24 +29,32 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
   isOpen = true,
   onClose,
 }) => {
-  const [activeTab, setActiveTab] = useState<'summary' | 'atoJourneys' | 'otherJourneys' | 'methodology'>('summary');
+  const [activeTab, setActiveTab] = useState<'summary' | 'atoJourneys' | 'otherJourneys' | 'rulesConfig' | 'methodology'>('summary');
   const [isExpanded, setIsExpanded] = useState(true);
+  const [evaluation, setEvaluation] = useState(fallbackEvaluation);
+  const [copiedConfig, setCopiedConfig] = useState(false);
 
-  // 12 synthetic ATO test journeys (synthetic data, illustration only)
-  const atoJourneys = [
-    { id: 'ATO-01', member: 'M1003', payeeAdded: '10/15 22:19', firstPayment: '22:22', rail: 'P2P', leadTime: '3 min', attempted: '$3,006.33', outcome: 'Loss' },
-    { id: 'ATO-02', member: 'M1007', payeeAdded: '10/14 23:13', firstPayment: '23:17', rail: 'P2P', leadTime: '4 min', attempted: '$3,461.24', outcome: 'Loss partly recovered' },
-    { id: 'ATO-03', member: 'M1010', payeeAdded: '10/15 12:58', firstPayment: '13:05', rail: 'P2P', leadTime: '7 min', attempted: '$3,541.94', outcome: 'Prevented' },
-    { id: 'ATO-04', member: 'M1016', payeeAdded: '10/17 07:07', firstPayment: '07:11', rail: 'P2P', leadTime: '4 min', attempted: '$3,240.16', outcome: 'Loss' },
-    { id: 'ATO-05', member: 'M1027', payeeAdded: '10/13 22:35', firstPayment: '22:44', rail: 'External Transfer', leadTime: '9 min', attempted: '$3,100.18', outcome: 'Prevented' },
-    { id: 'ATO-06', member: 'M1046', payeeAdded: '10/17 12:26', firstPayment: '12:31', rail: 'External Transfer', leadTime: '5 min', attempted: '$3,097.56', outcome: 'Prevented' },
-    { id: 'ATO-07', member: 'M1047', payeeAdded: '10/12 19:23', firstPayment: '19:28', rail: 'External Transfer', leadTime: '5 min', attempted: '$2,452.57', outcome: 'Prevented' },
-    { id: 'ATO-08', member: 'M1050', payeeAdded: '10/10 21:37', firstPayment: '21:41', rail: 'P2P', leadTime: '4 min', attempted: '$2,909.04', outcome: 'Prevented' },
-    { id: 'ATO-09', member: 'M1058', payeeAdded: '10/16 20:11', firstPayment: '20:17', rail: 'External Transfer', leadTime: '6 min', attempted: '$2,960.47', outcome: 'Loss' },
-    { id: 'ATO-10', member: 'M1105', payeeAdded: '10/08 13:05', firstPayment: '13:10', rail: 'P2P', leadTime: '5 min', attempted: '$3,199.34', outcome: 'Loss partly recovered' },
-    { id: 'ATO-11', member: 'M1111', payeeAdded: '10/19 21:18', firstPayment: '21:25', rail: 'External Transfer', leadTime: '7 min', attempted: '$3,377.17', outcome: 'Loss' },
-    { id: 'ATO-12', member: 'M1115', payeeAdded: '10/20 22:03', firstPayment: '22:12', rail: 'P2P', leadTime: '9 min', attempted: '$3,509.17', outcome: 'Prevented' },
-  ];
+  // Dynamically load evaluation.json if updated
+  useEffect(() => {
+    fetch('/data/evaluation.json')
+      .then((res) => {
+        if (res.ok) return res.json();
+        throw new Error('Failed to fetch evaluation.json');
+      })
+      .then((data) => setEvaluation(data))
+      .catch((err) => {
+        console.warn('Using bundled evaluation.json fallback:', err);
+      });
+  }, []);
+
+  const headline = evaluation.headline;
+  const atoJourneys = evaluation.ato_journeys || fallbackEvaluation.ato_journeys;
+
+  const copyConfigToClipboard = () => {
+    navigator.clipboard.writeText(JSON.stringify(rulesConfig, null, 2));
+    setCopiedConfig(true);
+    setTimeout(() => setCopiedConfig(false), 2000);
+  };
 
   return (
     <div className="bg-white rounded-xl border border-[#D0D9E2] shadow-xs overflow-hidden mb-6">
@@ -56,11 +70,14 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
                 Sound Guardian Evidence & Data Evaluation
               </h3>
               <span className="text-[10px] font-bold tracking-wider px-2 py-0.5 rounded bg-white/15 text-[#E1F0F8] border border-white/20">
-                118 Evaluation Journeys
+                {evaluation.total_members || 118} Evaluation Journeys
+              </span>
+              <span className="text-[10px] font-mono font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-200 border border-emerald-400/30">
+                v{rulesConfig.rule_version}
               </span>
             </div>
             <p className="text-xs text-[#E1F0F8]/90 mt-1 leading-relaxed max-w-3xl">
-              Strict deterministic rule performance across 118 synthetic member evaluation journeys (12 takeover, 106 other).
+              Strict deterministic rule performance across {evaluation.total_members || 118} synthetic member evaluation journeys ({headline.ato_quarantined || 12} takeover, {headline.other_total || 106} other).
             </p>
           </div>
         </div>
@@ -84,10 +101,10 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
           {/* Headline Summary Callout */}
           <div className="bg-[#E1F0F8]/70 border border-[#0082CA]/30 rounded-xl p-4 text-xs text-[#002D72] leading-relaxed shadow-2xs">
             <div className="font-bold text-[11px] uppercase tracking-wider text-[#0082CA] mb-1">
-              Headline Summary · Synthetic Data Evaluation
+              Headline Summary · Synthetic Data Evaluation (Rule v{rulesConfig.rule_version})
             </div>
             <p className="text-xs sm:text-sm font-medium text-[#002D72] leading-normal">
-              <strong>QUARANTINE</strong> fired on <strong>12 of 12</strong> takeover journeys, <strong>3–9 min</strong> before the first payment. <strong>0 of 106</strong> other members quarantined (36 other scams, 50 routine, 20 look-alikes). <strong>LIGHT</strong> fired on <strong>4 of 20</strong> look-alikes (M1039, M1041, M1051, M1114, all real movers). Takeover dollars in the data: <strong>$37,855.17</strong> attempted, <strong>$19,244.71</strong> sent, <strong>$15,665.88</strong> net loss.
+              <strong>QUARANTINE</strong> fired on <strong>{headline.ato_quarantined} of {headline.ato_total}</strong> takeover journeys, <strong>{headline.lead_time_min}–{headline.lead_time_max} min</strong> before the first payment. <strong>{headline.other_quarantined} of {headline.other_total}</strong> other members quarantined (36 other scams, 50 routine, 20 look-alikes). <strong>LIGHT</strong> fired on <strong>{headline.light_fired} of {headline.lookalikes_total}</strong> look-alikes ({(headline.light_members || []).join(', ')}, all real movers). Takeover dollars in the data: <strong>${headline.dollars_attempted.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> attempted, <strong>${headline.dollars_sent.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> sent, <strong>${headline.net_loss.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> net loss.
             </p>
           </div>
 
@@ -102,13 +119,13 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
                 <CheckCircle2 className="w-4 h-4 text-[#067647]" />
               </div>
               <div className="text-2xl sm:text-3xl font-extrabold font-tabular text-[#054F31]">
-                12 / 12
+                {headline.ato_quarantined} / {headline.ato_total}
               </div>
               <div className="text-xs font-semibold text-[#067647] mt-1">
                 Takeover Journeys Caught
               </div>
               <p className="text-[11px] text-[#054F31]/80 mt-1.5 leading-tight">
-                Fired 3–9 min before the first payment upon recipient enrollment.
+                Fired {headline.lead_time_min}–{headline.lead_time_max} min before the first payment upon recipient enrollment.
               </p>
             </div>
 
@@ -121,13 +138,13 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
                 <ShieldCheck className="w-4 h-4 text-[#0082CA]" />
               </div>
               <div className="text-2xl sm:text-3xl font-extrabold font-tabular text-[#002D72]">
-                0 / 106
+                {headline.other_quarantined} / {headline.other_total}
               </div>
               <div className="text-xs font-semibold text-[#0082CA] mt-1">
                 0 Quarantined (36 other scams, 50 routine, 20 look-alikes)
               </div>
               <p className="text-[11px] text-[#5B6B7A] mt-1.5 leading-tight">
-                LIGHT fired on 4 of 20 look-alikes (M1039, M1041, M1051, M1114, all real movers).
+                LIGHT fired on {headline.light_fired} of {headline.lookalikes_total} look-alikes ({(headline.light_members || []).join(', ')}, all real movers).
               </p>
             </div>
 
@@ -140,7 +157,7 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
                 <Clock className="w-4 h-4 text-amber-600" />
               </div>
               <div className="text-2xl sm:text-3xl font-extrabold font-tabular text-[#93370D]">
-                3 – 9 min
+                {headline.lead_time_min} – {headline.lead_time_max} min
               </div>
               <div className="text-xs font-semibold text-[#B54708] mt-1">
                 Before 1st Outgoing Payment
@@ -159,22 +176,22 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
                 <TrendingUp className="w-4 h-4 text-[#002D72]" />
               </div>
               <div className="text-2xl sm:text-3xl font-extrabold font-tabular text-[#002D72]">
-                $37,855.17
+                ${headline.dollars_attempted.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
               <div className="text-xs font-semibold text-[#1B2733] mt-1">
                 Attempted in Takeover Data
               </div>
               <p className="text-[11px] text-[#5B6B7A] mt-1.5 leading-tight">
-                $19,244.71 sent · $15,665.88 net loss across 12 takeover journeys.
+                ${headline.dollars_sent.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} sent · ${headline.net_loss.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} net loss across 12 takeover journeys.
               </p>
             </div>
           </div>
 
           {/* Navigation Tabs */}
-          <div className="border-b border-[#D0D9E2] flex items-center gap-4 text-xs font-semibold text-[#5B6B7A]">
+          <div className="border-b border-[#D0D9E2] flex items-center gap-4 text-xs font-semibold text-[#5B6B7A] overflow-x-auto">
             <button
               onClick={() => setActiveTab('summary')}
-              className={`pb-2.5 cursor-pointer border-b-2 transition-colors ${
+              className={`pb-2.5 cursor-pointer border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === 'summary'
                   ? 'border-[#0082CA] text-[#002D72] font-bold'
                   : 'border-transparent hover:text-[#002D72]'
@@ -184,7 +201,7 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
             </button>
             <button
               onClick={() => setActiveTab('atoJourneys')}
-              className={`pb-2.5 cursor-pointer border-b-2 transition-colors flex items-center gap-1.5 ${
+              className={`pb-2.5 cursor-pointer border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap ${
                 activeTab === 'atoJourneys'
                   ? 'border-[#0082CA] text-[#002D72] font-bold'
                   : 'border-transparent hover:text-[#002D72]'
@@ -192,12 +209,12 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
             >
               <span>12 Takeover Journeys</span>
               <span className="px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800 text-[10px]">
-                12/12
+                {headline.ato_quarantined}/{headline.ato_total}
               </span>
             </button>
             <button
               onClick={() => setActiveTab('otherJourneys')}
-              className={`pb-2.5 cursor-pointer border-b-2 transition-colors flex items-center gap-1.5 ${
+              className={`pb-2.5 cursor-pointer border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap ${
                 activeTab === 'otherJourneys'
                   ? 'border-[#0082CA] text-[#002D72] font-bold'
                   : 'border-transparent hover:text-[#002D72]'
@@ -205,12 +222,26 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
             >
               <span>106 Other Member Journeys</span>
               <span className="px-1.5 py-0.2 rounded-full bg-blue-100 text-blue-800 text-[10px]">
-                0/106 quarantined
+                {headline.other_quarantined}/{headline.other_total} quarantined
+              </span>
+            </button>
+            <button
+              onClick={() => setActiveTab('rulesConfig')}
+              className={`pb-2.5 cursor-pointer border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap ${
+                activeTab === 'rulesConfig'
+                  ? 'border-[#0082CA] text-[#002D72] font-bold'
+                  : 'border-transparent hover:text-[#002D72]'
+              }`}
+            >
+              <Sliders className="w-3.5 h-3.5 text-[#0082CA]" />
+              <span>Active Rule Config</span>
+              <span className="px-1.5 py-0.2 rounded-full bg-indigo-100 text-indigo-800 text-[10px] font-mono">
+                v{rulesConfig.rule_version}
               </span>
             </button>
             <button
               onClick={() => setActiveTab('methodology')}
-              className={`pb-2.5 cursor-pointer border-b-2 transition-colors ${
+              className={`pb-2.5 cursor-pointer border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === 'methodology'
                   ? 'border-[#0082CA] text-[#002D72] font-bold'
                   : 'border-transparent hover:text-[#002D72]'
@@ -275,9 +306,9 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
             <div className="space-y-3">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-[#5B6B7A]">
-                  QUARANTINE fired on 12 of 12 takeover journeys, 3–9 min before the first payment.
+                  QUARANTINE fired on {headline.ato_quarantined} of {headline.ato_total} takeover journeys, {headline.lead_time_min}–{headline.lead_time_max} min before the first payment.
                 </span>
-                <span className="font-bold text-[#067647]">12 / 12 Caught</span>
+                <span className="font-bold text-[#067647]">{headline.ato_quarantined} / {headline.ato_total} Caught</span>
               </div>
               <div className="overflow-x-auto border border-[#D0D9E2] rounded-xl shadow-2xs">
                 <table className="w-full text-left text-xs border-collapse">
@@ -293,7 +324,7 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#D0D9E2]">
-                    {atoJourneys.map((j) => (
+                    {atoJourneys.map((j: any) => (
                       <tr key={j.id} className="hover:bg-slate-50 transition-colors">
                         <td className="py-2.5 px-3 font-mono font-bold text-[#002D72]">{j.member}</td>
                         <td className="py-2.5 px-3 font-mono text-[#B42318] font-semibold">{j.payeeAdded}</td>
@@ -332,9 +363,9 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
             <div className="space-y-3">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-[#5B6B7A]">
-                  0 of 106 other members quarantined (36 other scams, 50 routine, 20 look-alikes).
+                  {headline.other_quarantined} of {headline.other_total} other members quarantined (36 other scams, 50 routine, 20 look-alikes).
                 </span>
-                <span className="font-bold text-[#0082CA]">0 / 106 Quarantined</span>
+                <span className="font-bold text-[#0082CA]">{headline.other_quarantined} / {headline.other_total} Quarantined</span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
                 <div className="bg-[#F4F8FA] p-3.5 rounded-lg border border-[#D0D9E2] space-y-1.5 shadow-2xs">
@@ -359,7 +390,146 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
             </div>
           )}
 
-          {/* Tab 4: Methodology */}
+          {/* Tab 4: Active Rule Config (Read-Only) */}
+          {activeTab === 'rulesConfig' && (
+            <div className="space-y-4 text-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#F4F8FA] p-4 rounded-xl border border-[#D0D9E2]">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-sm text-[#002D72]">{rulesConfig.rule_name}</span>
+                    <span className="font-mono text-xs px-2.5 py-0.5 rounded-full bg-[#002D72] text-white font-bold">
+                      v{rulesConfig.rule_version}
+                    </span>
+                  </div>
+                  <p className="text-xs text-[#5B6B7A] mt-1">
+                    {rulesConfig.description} (Effective: {rulesConfig.effective_date})
+                  </p>
+                </div>
+                <button
+                  onClick={copyConfigToClipboard}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-[#D0D9E2] hover:bg-slate-50 text-[#002D72] font-semibold text-xs transition-colors cursor-pointer shrink-0"
+                >
+                  {copiedConfig ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-[#0082CA]" />}
+                  <span>{copiedConfig ? 'Copied Config' : 'Copy JSON'}</span>
+                </button>
+              </div>
+
+              {/* Windows & Thresholds Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="bg-white p-3.5 rounded-xl border border-[#D0D9E2]">
+                  <span className="text-[#5B6B7A] block text-[11px] font-semibold uppercase">Password Reset Window</span>
+                  <div className="text-xl font-bold font-mono text-[#002D72] mt-1">
+                    {rulesConfig.windows.password_reset_days} days
+                  </div>
+                  <p className="text-[11px] text-[#5B6B7A] mt-0.5">Prior self-service credentials reset</p>
+                </div>
+
+                <div className="bg-white p-3.5 rounded-xl border border-[#D0D9E2]">
+                  <span className="text-[#5B6B7A] block text-[11px] font-semibold uppercase">Contact Change Window</span>
+                  <div className="text-xl font-bold font-mono text-[#002D72] mt-1">
+                    {rulesConfig.windows.contact_channel_change_days} days
+                  </div>
+                  <p className="text-[11px] text-[#5B6B7A] mt-0.5">Email and/or Phone update delta</p>
+                </div>
+
+                <div className="bg-white p-3.5 rounded-xl border border-[#D0D9E2]">
+                  <span className="text-[#5B6B7A] block text-[11px] font-semibold uppercase">Pre-Change Lookup</span>
+                  <div className="text-xl font-bold font-mono text-[#002D72] mt-1">
+                    {rulesConfig.windows.pre_change_lookup_days} days
+                  </div>
+                  <p className="text-[11px] text-[#5B6B7A] mt-0.5">Sound historical phone verification record</p>
+                </div>
+
+                <div className="bg-white p-3.5 rounded-xl border border-[#D0D9E2]">
+                  <span className="text-[#5B6B7A] block text-[11px] font-semibold uppercase">Light Tier Hold</span>
+                  <div className="text-xl font-bold font-mono text-[#002D72] mt-1">
+                    {rulesConfig.windows.light_hold_duration_hours} hours
+                  </div>
+                  <p className="text-[11px] text-[#5B6B7A] mt-0.5">Self-service one-tap confirmation expiry</p>
+                </div>
+              </div>
+
+              {/* Tier Actions & Reason Codes Table */}
+              <div className="border border-[#D0D9E2] rounded-xl overflow-hidden shadow-2xs">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-[#F4F8FA] border-b border-[#D0D9E2] font-semibold text-[#002D72]">
+                    <tr>
+                      <th className="py-2.5 px-3">Tier Name</th>
+                      <th className="py-2.5 px-3">Action Enforced</th>
+                      <th className="py-2.5 px-3">Reason Code</th>
+                      <th className="py-2.5 px-3">Policy Rationale</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#D0D9E2] bg-white">
+                    <tr className="hover:bg-slate-50">
+                      <td className="py-2.5 px-3">
+                        <span className="px-2 py-0.5 rounded bg-rose-100 text-rose-800 font-bold font-mono">
+                          {rulesConfig.tier_names.QUARANTINE}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 font-mono text-[#002D72] font-semibold">
+                        {rulesConfig.actions.QUARANTINE}
+                      </td>
+                      <td className="py-2.5 px-3 font-mono text-slate-700">
+                        {rulesConfig.reason_codes.QUARANTINE}
+                      </td>
+                      <td className="py-2.5 px-3 text-[#5B6B7A]">
+                        Payee enrollment quarantined pending verification on pre-change phone.
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-slate-50">
+                      <td className="py-2.5 px-3">
+                        <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-bold font-mono">
+                          {rulesConfig.tier_names.LIGHT}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 font-mono text-[#002D72] font-semibold">
+                        {rulesConfig.actions.LIGHT}
+                      </td>
+                      <td className="py-2.5 px-3 font-mono text-slate-700">
+                        {rulesConfig.reason_codes.LIGHT}
+                      </td>
+                      <td className="py-2.5 px-3 text-[#5B6B7A]">
+                        Address-only change mover check: 4-hour one-tap verify to unchanged phone.
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-slate-50">
+                      <td className="py-2.5 px-3">
+                        <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold font-mono">
+                          {rulesConfig.tier_names.NONE}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 font-mono text-[#002D72] font-semibold">
+                        {rulesConfig.actions.NONE}
+                      </td>
+                      <td className="py-2.5 px-3 font-mono text-slate-700">
+                        {rulesConfig.reason_codes.NONE}
+                      </td>
+                      <td className="py-2.5 px-3 text-[#5B6B7A]">
+                        Standard baseline activity processed normally without friction.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Read-Only Configuration JSON Inspector */}
+              <div className="bg-[#1E293B] text-slate-200 p-4 rounded-xl border border-slate-700 space-y-2">
+                <div className="flex items-center justify-between text-[11px] text-slate-400 pb-2 border-b border-slate-700">
+                  <span className="flex items-center gap-1.5 font-mono">
+                    <Code2 className="w-3.5 h-3.5 text-[#56BBEB]" />
+                    <span>src/config/rules.config.json (Read-Only)</span>
+                  </span>
+                  <span className="font-mono text-slate-400">Deterministic Engine Active</span>
+                </div>
+                <pre className="font-mono text-[11px] leading-relaxed overflow-x-auto text-emerald-300 max-h-48">
+                  {JSON.stringify(rulesConfig, null, 2)}
+                </pre>
+              </div>
+            </div>
+          )}
+
+          {/* Tab 5: Methodology */}
           {activeTab === 'methodology' && (
             <div className="bg-[#F4F8FA] p-4 rounded-xl border border-[#D0D9E2] space-y-3 text-xs text-[#1B2733] leading-relaxed">
               <div className="flex items-center gap-2 font-bold text-[#002D72]">

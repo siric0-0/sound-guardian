@@ -1,6 +1,14 @@
 import { DemoEvent } from '../types.ts';
 import rawCsv from '../../public/data/demo_events_subset.csv?raw';
 
+function parseFlag(val: string | undefined): number {
+  if (!val) return 0;
+  const v = val.trim().toLowerCase();
+  if (v === 'yes' || v === 'true' || v === '1') return 1;
+  const num = parseInt(val, 10);
+  return isNaN(num) ? 0 : num;
+}
+
 export function parseCSV(csvText: string): DemoEvent[] {
   const lines = csvText.trim().split(/\r?\n/);
   if (lines.length < 2) return [];
@@ -40,13 +48,13 @@ export function parseCSV(csvText: string): DemoEvent[] {
       amount_vs_member_baseline: row['amount_vs_member_baseline'] || '',
       payment_velocity_band: row['payment_velocity_band'] || '',
       available_balance_after: parseFloat(row['available_balance_after'] || '0') || 0,
-      profile_change_recent: parseInt(row['profile_change_recent'] || '0', 10),
-      password_reset_recent: parseInt(row['password_reset_recent'] || '0', 10),
-      trusted_contact_enrolled: parseInt(row['trusted_contact_enrolled'] || '0', 10),
-      warning_displayed: parseInt(row['warning_displayed'] || '0', 10),
+      profile_change_recent: parseFlag(row['profile_change_recent']),
+      password_reset_recent: parseFlag(row['password_reset_recent']),
+      trusted_contact_enrolled: parseFlag(row['trusted_contact_enrolled']),
+      warning_displayed: parseFlag(row['warning_displayed']),
       member_response: row['member_response'] || '',
       employee_interaction: row['employee_interaction'] || '',
-      case_open: parseInt(row['case_open'] || '0', 10),
+      case_open: parseFlag(row['case_open']),
       payment_status: row['payment_status'] || '',
       event_note: row['event_note'] || '',
     });

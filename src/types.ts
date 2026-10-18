@@ -67,15 +67,22 @@ export interface ArbiterDecision {
   citations: string[];
   existing_risk_score?: number; // legacy risk score (e.g. 78/100)
   flagged_events?: { id: string; time: string; type: string; detail: string }[];
+  rule_version?: string;
 }
 
 export interface AuditEntry {
   id: string;
   timestamp: string;
-  who: string;
-  what: string;
-  reason: string;
-  payment_id: string;
+  actor_role: string;
+  action: string;
+  case_id: string;
+  reason_code: string;
+  source_event_ids: string[];
+  rule_version: string;
+  who?: string;
+  what?: string;
+  reason?: string;
+  payment_id?: string;
 }
 
 export interface AssistedNote {

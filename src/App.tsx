@@ -26,6 +26,7 @@ import {
   StaffAssistResponse,
 } from './lib/api.ts';
 import { tokenizeMemberId, maskPhone } from './lib/tokenization.ts';
+import rulesConfig from './config/rules.config.json';
 
 import { TopBar } from './components/TopBar.tsx';
 import { SCENARIOS } from './components/ScenarioPicker.tsx';
@@ -222,21 +223,64 @@ export default function App() {
     }
   }, [currentEvent.event_id, currentEvent.event_type, triggerAiGenerations]);
 
-  // Audit trail helper
-  const addAuditEntry = (action: string, who: string, reason: string) => {
+  // Structured Audit Trail helper (timestamp, actor_role, action, case_id, reason_code, source_event_ids, rule_version)
+  const addAuditEntry = (
+    action: string,
+    actor_role: string,
+    reason: string,
+    reason_code: string = 'STAFF_ACTION',
+    source_event_ids: string[] = currentSignals?.source_event_ids || [currentEvent.event_id || 'EVT-MANUAL'],
+    case_id: string = currentEvent.payment_id || `C-2026-${(currentEvent.synthetic_member_id || scenarioDef.memberId || '1003').replace(/\D/g, '')}`
+  ) => {
     const newEntry: AuditEntry = {
-      id: `AUD-${Date.now()}`,
-      timestamp: new Date().toLocaleTimeString(),
-      who,
+      id: `AUD-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      timestamp: new Date().toISOString(),
+      actor_role,
+      action,
+      case_id,
+      reason_code,
+      source_event_ids,
+      rule_version: rulesConfig.rule_version,
+      who: actor_role,
       what: action,
       reason,
-      payment_id: currentEvent.payment_id || `P-${currentEvent.event_id}`,
+      payment_id: currentEvent.payment_id || `P-${currentEvent.event_id || 'ACTION'}`,
     };
     setSession((prev) => ({
       ...prev,
       auditLog: [newEntry, ...prev.auditLog],
     }));
   };
+
+  // Log every Arbiter decision automatically
+  const loggedDecisionsRef = React.useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!currentDecision || !currentEvent || !currentSignals) return;
+    const decisionKey = `${currentEvent.event_id}-${currentDecision.tier}-${currentDecision.reason_code}`;
+    if (loggedDecisionsRef.current.has(decisionKey)) return;
+    loggedDecisionsRef.current.add(decisionKey);
+
+    const caseId = currentEvent.payment_id || `C-2026-${(currentEvent.synthetic_member_id || scenarioDef.memberId || '1003').replace(/\D/g, '')}`;
+    const newEntry: AuditEntry = {
+      id: `AUD-ARB-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      timestamp: new Date().toISOString(),
+      actor_role: 'SYSTEM_ARBITER',
+      action: `ARBITER_TIER_${currentDecision.tier}`,
+      case_id: caseId,
+      reason_code: currentDecision.reason_code,
+      source_event_ids: currentSignals.source_event_ids || [currentEvent.event_id],
+      rule_version: currentDecision.rule_version || rulesConfig.rule_version,
+      who: 'System (Arbiter)',
+      what: `Tier ${currentDecision.tier} · ${currentDecision.action}`,
+      reason: currentDecision.reason_plain,
+      payment_id: currentEvent.payment_id || `P-${currentEvent.event_id}`,
+    };
+
+    setSession((prev) => ({
+      ...prev,
+      auditLog: [newEntry, ...prev.auditLog],
+    }));
+  }, [currentDecision, currentEvent, currentSignals, scenarioDef.memberId]);
 
   // Action Handlers
   const handleFreezeAndRecover = () => {
@@ -257,8 +301,11 @@ export default function App() {
     }));
     addAuditEntry(
       'Account Frozen & Stop (ATO) Applied',
-      'Member (Pre-Change Phone Check)',
-      'Member confirmed unapproved credentials change and requested immediate rail freeze.'
+      'MEMBER_PRE_CHANGE_PHONE',
+      'Member confirmed unapproved credentials change and requested immediate rail freeze.',
+      'MEMBER_PRE_CHANGE_CONFIRMED_FRAUD',
+      currentSignals?.source_event_ids || [currentEvent.event_id],
+      'C-2026-1003'
     );
   };
 
@@ -273,8 +320,9 @@ export default function App() {
     }));
     addAuditEntry(
       'Quarantine Payment Released',
-      'Member Verified (In-Branch ID Check)',
-      'Member verified identity with government photo ID at branch; approved contact updates.'
+      'MEMBER_BRANCH_VERIFIED',
+      'Member verified identity with government photo ID at branch; approved contact updates.',
+      'IN_BRANCH_GOVT_ID_VERIFIED'
     );
   };
 
@@ -289,8 +337,9 @@ export default function App() {
     }));
     addAuditEntry(
       'LIGHT Tier One-Tap Authorized',
-      'Member (Unchanged Primary Phone)',
-      'Member tapped "Yes, this was me" in 8 seconds. Rent payment released to clearing.'
+      'MEMBER_PRIMARY_PHONE',
+      'Member tapped "Yes, this was me" in 8 seconds. Rent payment released to clearing.',
+      'LIGHT_ONE_TAP_APPROVED'
     );
   };
 
@@ -305,8 +354,9 @@ export default function App() {
     }));
     addAuditEntry(
       'LIGHT Tier Transfer Denied',
-      'Member (Unchanged Primary Phone)',
-      'Member tapped "No, this wasn\'t me". Rails frozen.'
+      'MEMBER_PRIMARY_PHONE',
+      'Member tapped "No, this wasn\'t me". Rails frozen.',
+      'LIGHT_ONE_TAP_DENIED'
     );
   };
 
@@ -321,8 +371,11 @@ export default function App() {
     }));
     addAuditEntry(
       'Cash Withdrawal Cancelled',
-      'Member (In-Branch Teller Guidance)',
-      'Member realized phone instruction was fraudulent imposter and cancelled $7,000 withdrawal.'
+      'MEMBER_TELLER_ASSIST',
+      'Member realized phone instruction was fraudulent imposter and cancelled $7,000 withdrawal.',
+      'TELLER_INQUIRY_COERCION_PREVENTED',
+      [currentEvent.event_id || 'EVT-1004'],
+      'C-2026-1004'
     );
   };
 
@@ -337,8 +390,9 @@ export default function App() {
     }));
     addAuditEntry(
       'Stop Payment (ATO) Executed',
-      'Fraud Analyst E-4819',
-      'ATO signature confirmed: dual contact change + new payee P2P attempt. Unauthorized credentials terminated.'
+      'FRAUD_ANALYST_E4819',
+      'ATO signature confirmed: dual contact change + new payee P2P attempt. Unauthorized credentials terminated.',
+      'STAFF_APPLY_STOP_ATO'
     );
   };
 
@@ -356,16 +410,18 @@ export default function App() {
     }));
     addAuditEntry(
       'Dual-Staff Quarantine Release',
-      `${approver1} & ${approver2}`,
-      reason
+      'DUAL_STAFF_APPROVAL',
+      `Sign-off by ${approver1} & ${approver2}: ${reason}`,
+      'DUAL_STAFF_RELEASE_OVERRIDE'
     );
   };
 
   const handleStaffContactPreChangePhone = () => {
     addAuditEntry(
       'Outbound Call Dispatched',
-      'Fraud Analyst E-4819',
-      `Calling pre-change phone (${maskPhone('(206) 555-4821')}) with STAFF ASSIST verification script.`
+      'FRAUD_ANALYST_E4819',
+      `Calling pre-change phone (${maskPhone('(206) 555-4821')}) with STAFF ASSIST verification script.`,
+      'PRE_CHANGE_PHONE_OUTBOUND_DISPATCH'
     );
   };
 
@@ -379,8 +435,11 @@ export default function App() {
     }));
     addAuditEntry(
       'Case Created (#C-2026-1003)',
-      'Fraud Analyst E-4819',
-      'Case assigned to Senior Investigator; evidence package compiled with observable timestamps.'
+      'FRAUD_ANALYST_E4819',
+      'Case assigned to Senior Investigator; evidence package compiled with observable timestamps.',
+      'FRAUD_DOSSIER_COMPILED',
+      currentSignals?.source_event_ids,
+      'C-2026-1003'
     );
   };
 
@@ -394,13 +453,19 @@ export default function App() {
     }));
     addAuditEntry(
       'Network Recall & ACH Return Transmitted',
-      'Operations Specialist E-1044',
-      'Emergency indemnification wire notice dispatched to receiving depository institution.'
+      'OPERATIONS_SPECIALIST_E1044',
+      'Emergency indemnification wire notice dispatched to receiving depository institution.',
+      'NETWORK_RECALL_DISPATCHED'
     );
   };
 
   const handleAddAssistedNote = (text: string) => {
-    addAuditEntry('AssistedNote Added', 'E-4819 (Fraud Analyst)', text);
+    addAuditEntry(
+      'AssistedNote Added',
+      'FRAUD_ANALYST_E4819',
+      text,
+      'CROSS_CHANNEL_NOTE_APPENDED'
+    );
   };
 
   const handleRequestAtBranch = () => {
@@ -410,8 +475,9 @@ export default function App() {
     }));
     addAuditEntry(
       'Member Requested In-Branch Verification (PRIORITY)',
-      'Member Self-Service (Sound Digital Banking)',
-      'Member requested in-branch identity verification. Case marked BRANCH PRIORITY in branch & fraud operations queue.'
+      'MEMBER_SELF_SERVICE',
+      'Member requested in-branch identity verification. Case marked BRANCH PRIORITY in branch & fraud operations queue.',
+      'MEMBER_BRANCH_PRIORITY_FLAGGED'
     );
   };
 
@@ -609,16 +675,33 @@ export default function App() {
   if (csvError) {
     return (
       <div className="min-h-screen bg-[#F4F8FA] flex items-center justify-center p-4">
-        <div className="bg-white p-6 rounded-xl border border-red-200 shadow-lg max-w-md text-center space-y-3">
-          <AlertCircle className="w-8 h-8 text-red-600 mx-auto" />
-          <h2 className="font-serif text-lg font-bold text-red-700">Dataset Load Error</h2>
-          <p className="text-xs text-[#5B6B7A]">{csvError}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-[#002D72] text-white text-xs font-semibold rounded-lg"
-          >
-            Retry
-          </button>
+        <div className="bg-white p-6 rounded-2xl border-2 border-amber-200 shadow-lg max-w-md text-center space-y-3">
+          <AlertCircle className="w-8 h-8 text-amber-600 mx-auto" />
+          <h2 className="font-serif text-lg font-bold text-[#002D72]">Dataset Fallback Active</h2>
+          <div className="bg-amber-50 p-3 rounded-lg border border-amber-200 text-xs text-amber-900 space-y-1">
+            <p className="font-semibold">{csvError}</p>
+            <p className="font-bold text-emerald-700">Decision unaffected · Deterministic rules active</p>
+          </div>
+          <p className="text-xs text-[#5B6B7A]">
+            Sound Guardian fallback rules safeguard member accounts with deterministic sequence analysis.
+          </p>
+          <div className="flex justify-center gap-2 pt-1">
+            <button
+              onClick={() => {
+                setCsvError(null);
+                setCurrentScreen('story_picker');
+              }}
+              className="px-4 py-2 bg-[#002D72] text-white text-xs font-semibold rounded-lg hover:bg-[#001D4A] cursor-pointer"
+            >
+              Continue with Template Data
+            </button>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-slate-100 border border-[#D0D9E2] text-[#002D72] text-xs font-semibold rounded-lg hover:bg-slate-200 cursor-pointer"
+            >
+              Retry
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -837,8 +920,11 @@ export default function App() {
             }));
             addAuditEntry(
               'Emergency Scam Report Submitted',
-              'Member Self-Service (Scam Report)',
-              `Member reported scam: "${reason}". Details: ${description || 'None'}. Payments: ${selectedPaymentIds.join(', ')}. Reach via: ${isBranch ? 'Visit a branch (PRIORITY)' : 'Phone callback'}. Rails paused, case #C-2026-${memberLast4} opened.`
+              'MEMBER_SCAM_REPORT',
+              `Member reported scam: "${reason}". Details: ${description || 'None'}. Payments: ${selectedPaymentIds.join(', ')}. Reach via: ${isBranch ? 'Visit a branch (PRIORITY)' : 'Phone callback'}. Rails paused, case #C-2026-${memberLast4} opened.`,
+              isBranch ? 'SCAM_REPORT_BRANCH_PRIORITY' : 'SCAM_REPORT_PHONE_CALLBACK',
+              selectedPaymentIds.length > 0 ? selectedPaymentIds : [currentEvent.event_id],
+              `C-2026-${memberLast4}`
             );
           }}
         />

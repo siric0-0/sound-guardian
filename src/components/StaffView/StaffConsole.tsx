@@ -35,7 +35,9 @@ import {
   AlertTriangle,
   UserCheck,
   Home,
+  Download,
 } from 'lucide-react';
+import rulesConfig from '../../config/rules.config.json';
 
 interface StaffConsoleProps {
   queueItems: QueueItem[];
@@ -129,6 +131,54 @@ export const StaffConsole: React.FC<StaffConsoleProps> = ({
   const activeCase = useMemo(() => {
     return queueItems.find((q) => q.paymentId === selectedCaseId) || queueItems[0] || {} as QueueItem;
   }, [queueItems, selectedCaseId]);
+
+  const handleExportCaseJson = (caseItem: QueueItem) => {
+    const caseId = caseItem.paymentId ? (caseItem.paymentId.startsWith('C-') ? caseItem.paymentId : `C-2026-${caseItem.memberId.replace('M', '')}`) : 'C-2026-1003';
+    const relevantAudit = auditLog.filter(
+      (a) =>
+        a.case_id === caseItem.paymentId ||
+        a.case_id === caseId ||
+        a.case_id?.includes(caseItem.memberId.replace('M', '')) ||
+        a.payment_id === caseItem.paymentId
+    );
+
+    const exportPayload = {
+      case_id: caseId,
+      exported_at: new Date().toISOString(),
+      rule_version: rulesConfig.rule_version,
+      member: {
+        synthetic_member_id: caseItem.memberId,
+        member_token: caseItem.memberToken,
+      },
+      payment: {
+        payment_id: caseItem.paymentId,
+        amount: caseItem.amount,
+        rail: caseItem.rail,
+        status: caseItem.status,
+      },
+      decision: {
+        tier: caseItem.tier,
+        reason_code: caseItem.reasonCode,
+        reason_plain: caseItem.reasonPlain,
+        hold_expires_at: caseItem.timeLeft,
+      },
+      signals: signals || null,
+      flagged_events: caseItem.flaggedEvents || [],
+      audit_trail: relevantAudit.length > 0 ? relevantAudit : auditLog,
+    };
+
+    const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
+      type: 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `case-${caseItem.memberId || 'export'}-${Date.now()}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-4">
@@ -511,7 +561,9 @@ export const StaffConsole: React.FC<StaffConsoleProps> = ({
                         <Sparkles className="w-3.5 h-3.5 text-[#0082CA]" />
                         <span>Staff Assist Operational Briefing</span>
                       </span>
-                      <span className="text-[10px] text-[#5B6B7A]">Deterministic / AI Guided</span>
+                      <span className="text-[10px] text-[#5B6B7A]">
+                        {staffAssist?.is_live_ai ? 'Live AI Guided' : 'Template message · Decision unaffected'}
+                      </span>
                     </div>
                     <ul className="list-disc list-inside space-y-1 text-[#1B2733]">
                       {staffAssist?.summary ? (
@@ -631,16 +683,103 @@ export const StaffConsole: React.FC<StaffConsoleProps> = ({
 
               {/* Sub-tab 4: Audit Log */}
               {caseSubTab === 'audit' && (
-                <div className="space-y-2 text-xs max-h-[300px] overflow-y-auto">
-                  {auditLog.map((entry) => (
-                    <div key={entry.id} className="p-2.5 rounded-lg bg-[#F4F8FA] border border-[#D0D9E2] text-[11px]">
-                      <div className="flex items-center justify-between text-[#5B6B7A]">
-                        <span><strong>{entry.who}</strong> · {entry.what}</span>
-                        <span className="font-mono">{entry.timestamp}</span>
-                      </div>
-                      <p className="text-[#1B2733] mt-1">{entry.reason}</p>
+                <div className="space-y-3 text-xs">
+                  <div className="flex items-center justify-between pb-2 border-b border-[#D0D9E2]">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-[#002D72]">
+                        Immutable Audit Trail ({auditLog.length})
+                      </span>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                        v{rulesConfig.rule_version}
+                      </span>
                     </div>
-                  ))}
+                    <button
+                      onClick={() => handleExportCaseJson(activeCase)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#002D72] hover:bg-[#001D4A] text-white text-xs font-semibold cursor-pointer shadow-xs transition-colors"
+                      title="Download complete case dossier in JSON format"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Export case (JSON)</span>
+                    </button>
+                  </div>
+
+                  <div className="space-y-2.5 max-h-[350px] overflow-y-auto">
+                    {auditLog.length === 0 ? (
+                      <div className="p-4 text-center text-[#5B6B7A] bg-[#F4F8FA] rounded-xl border border-[#D0D9E2] italic">
+                        No audit events recorded yet for this session.
+                      </div>
+                    ) : (
+                      auditLog.map((entry) => (
+                        <div
+                          key={entry.id}
+                          className="p-3 rounded-xl bg-white border border-[#D0D9E2] hover:border-[#0082CA]/40 transition-colors space-y-1.5 shadow-2xs"
+                        >
+                          {/* Row 1: Actor Role, Action, Rule Version, Timestamp */}
+                          <div className="flex items-center justify-between text-[11px] gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span
+                                className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
+                                  entry.actor_role?.includes('ARBITER')
+                                    ? 'bg-blue-100 text-blue-900 border border-blue-200'
+                                    : entry.actor_role?.includes('MEMBER')
+                                    ? 'bg-amber-100 text-amber-900 border border-amber-200'
+                                    : 'bg-purple-100 text-purple-900 border border-purple-200'
+                                }`}
+                              >
+                                {entry.actor_role || entry.who}
+                              </span>
+                              <span className="font-semibold text-[#002D72]">
+                                {entry.action || entry.what}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0 text-[#5B6B7A]">
+                              <span className="font-mono text-[10px]">
+                                {entry.rule_version ? `v${entry.rule_version}` : `v${rulesConfig.rule_version}`}
+                              </span>
+                              <span>·</span>
+                              <span className="font-mono text-[10px]">
+                                {entry.timestamp.includes('T')
+                                  ? new Date(entry.timestamp).toLocaleTimeString()
+                                  : entry.timestamp}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Row 2: Case ID, Reason Code */}
+                          <div className="flex items-center gap-2 flex-wrap text-[11px]">
+                            <span className="text-[#5B6B7A]">Case ID:</span>
+                            <span className="font-mono font-bold text-[#002D72] bg-slate-100 px-1.5 py-0.5 rounded">
+                              {entry.case_id || entry.payment_id}
+                            </span>
+                            <span className="text-[#5B6B7A]">Reason Code:</span>
+                            <code className="font-mono text-[10px] bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded border border-slate-200">
+                              {entry.reason_code || 'STAFF_ACTION'}
+                            </code>
+                          </div>
+
+                          {/* Reason / Narrative */}
+                          <p className="text-[11px] text-[#1B2733] leading-relaxed">
+                            {entry.reason || entry.what}
+                          </p>
+
+                          {/* Source Event IDs */}
+                          {entry.source_event_ids && entry.source_event_ids.length > 0 && (
+                            <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-slate-100 text-[10px] text-[#5B6B7A]">
+                              <span>Source Events:</span>
+                              {entry.source_event_ids.map((eid, idx) => (
+                                <span
+                                  key={idx}
+                                  className="font-mono px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-200"
+                                >
+                                  {eid}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               )}
             </div>

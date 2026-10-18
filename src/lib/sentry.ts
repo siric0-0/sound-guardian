@@ -1,9 +1,25 @@
 import { DemoEvent, SentrySignals } from '../types.ts';
 import { tokenizeMemberId } from './tokenization.ts';
+import rulesConfig from '../config/rules.config.json';
 
-function parseTimestamp(ts: string): number {
-  const formatted = ts.includes('T') ? ts : ts.replace(' ', 'T');
-  return new Date(formatted).getTime();
+export function parseTimestamp(ts: string): number {
+  if (!ts) return 0;
+  const trimmed = ts.trim();
+  if (trimmed.includes('/')) {
+    const [datePart, timePart] = trimmed.split(' ');
+    if (datePart && timePart) {
+      const [m, d, y] = datePart.split('/').map(Number);
+      const timePieces = timePart.split(':').map(Number);
+      const hours = timePieces[0] || 0;
+      const minutes = timePieces[1] || 0;
+      const seconds = timePieces[2] || 0;
+      return new Date(y, m - 1, d, hours, minutes, seconds).getTime();
+    }
+  }
+  const formatted = trimmed.includes('T') ? trimmed : trimmed.replace(' ', 'T');
+  const parsed = new Date(formatted).getTime();
+  if (!isNaN(parsed)) return parsed;
+  return new Date(trimmed).getTime();
 }
 
 export function buildSentrySignals(
@@ -18,8 +34,9 @@ export function buildSentrySignals(
     return t <= eventTime && ev.event_id !== targetEvent.event_id;
   });
 
-  const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
-  const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+  const resetWindowMs = rulesConfig.windows.password_reset_days * 24 * 60 * 60 * 1000;
+  const contactChangeWindowMs = rulesConfig.windows.contact_channel_change_days * 24 * 60 * 60 * 1000;
+  const addressChangeWindowMs = rulesConfig.windows.address_change_days * 24 * 60 * 60 * 1000;
 
   let hasPasswordResetWithin7d = targetEvent.password_reset_recent === 1;
   const contactChanges: ('Email' | 'Phone')[] = [];
@@ -31,7 +48,7 @@ export function buildSentrySignals(
     const evTime = parseTimestamp(ev.event_timestamp);
     const diffMs = eventTime - evTime;
 
-    if (ev.event_type === 'Password Reset' && diffMs <= sevenDaysMs) {
+    if (ev.event_type === 'Password Reset' && diffMs <= resetWindowMs) {
       hasPasswordResetWithin7d = true;
       sourceEventIds.push(ev.event_id);
       if (!mostRecentChangeTime || evTime > mostRecentChangeTime) {
@@ -39,7 +56,7 @@ export function buildSentrySignals(
       }
     }
 
-    if (ev.event_type === 'Email Change' && diffMs <= thirtyDaysMs) {
+    if (ev.event_type === 'Email Change' && diffMs <= contactChangeWindowMs) {
       if (!contactChanges.includes('Email')) contactChanges.push('Email');
       sourceEventIds.push(ev.event_id);
       if (!mostRecentChangeTime || evTime > mostRecentChangeTime) {
@@ -47,7 +64,7 @@ export function buildSentrySignals(
       }
     }
 
-    if (ev.event_type === 'Phone Change' && diffMs <= thirtyDaysMs) {
+    if (ev.event_type === 'Phone Change' && diffMs <= contactChangeWindowMs) {
       if (!contactChanges.includes('Phone')) contactChanges.push('Phone');
       sourceEventIds.push(ev.event_id);
       if (!mostRecentChangeTime || evTime > mostRecentChangeTime) {
@@ -55,7 +72,7 @@ export function buildSentrySignals(
       }
     }
 
-    if (ev.event_type === 'Address Change' && diffMs <= thirtyDaysMs) {
+    if (ev.event_type === 'Address Change' && diffMs <= addressChangeWindowMs) {
       hasAddressChangeWithin30d = true;
       sourceEventIds.push(ev.event_id);
       if (!mostRecentChangeTime || evTime > mostRecentChangeTime) {

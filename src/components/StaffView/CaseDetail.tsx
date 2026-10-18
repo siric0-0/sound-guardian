@@ -14,7 +14,9 @@ import {
   Clock,
   Lock,
   MessageSquare,
+  Download,
 } from 'lucide-react';
+import rulesConfig from '../../config/rules.config.json';
 import {
   DemoEvent,
   ArbiterDecision,
@@ -392,26 +394,79 @@ export const CaseDetail: React.FC<CaseDetailProps> = ({
       </div>
 
       {/* Audit Trail Log */}
-      <div className="bg-white rounded-xl border border-[#D0D9E2] p-4 space-y-2">
+      <div className="bg-white rounded-xl border border-[#D0D9E2] p-4 space-y-3">
         <div className="flex items-center justify-between text-xs pb-2 border-b border-[#D0D9E2]">
-          <span className="font-bold text-[#002D72]">Immutable Audit Trail</span>
-          <span className="text-[10px] text-[#5B6B7A]">Retained 7 Years under SCU Record Policy</span>
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-[#002D72]">Immutable Audit Trail ({auditTrail.length})</span>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+              v{rulesConfig.rule_version}
+            </span>
+          </div>
+          <button
+            onClick={() => {
+              const exportPayload = {
+                case_id: decision?.payment_id || currentEvent.payment_id || `C-2026-${currentEvent.synthetic_member_id.replace('M', '')}`,
+                exported_at: new Date().toISOString(),
+                rule_version: rulesConfig.rule_version,
+                member: {
+                  synthetic_member_id: currentEvent.synthetic_member_id,
+                  member_token: memberToken,
+                },
+                payment: {
+                  payment_id: currentEvent.payment_id,
+                  amount: currentEvent.amount,
+                  rail: currentEvent.payment_rail,
+                },
+                decision: decision || null,
+                signals: signals || null,
+                audit_trail: auditTrail,
+              };
+              const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
+                type: 'application/json',
+              });
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement('a');
+              link.href = url;
+              link.download = `case-${currentEvent.synthetic_member_id || 'export'}-${Date.now()}.json`;
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+              URL.revokeObjectURL(url);
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#002D72] hover:bg-[#001D4A] text-white text-xs font-semibold cursor-pointer shadow-xs transition-colors"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Export case (JSON)</span>
+          </button>
         </div>
 
-        <div className="space-y-1.5 max-h-40 overflow-y-auto text-[11px]">
+        <div className="space-y-2 max-h-48 overflow-y-auto text-[11px]">
           {auditTrail.length === 0 ? (
             <span className="text-[#5B6B7A] italic">No manual actions taken yet for this session.</span>
           ) : (
             auditTrail.map((entry) => (
               <div
                 key={entry.id}
-                className="flex items-start justify-between py-1 border-b border-slate-100 last:border-none"
+                className="p-2.5 rounded-lg bg-[#F4F8FA] border border-[#D0D9E2] space-y-1"
               >
-                <div>
-                  <span className="font-semibold text-[#002D72]">{entry.who}</span>: {entry.what}
-                  <span className="text-[#5B6B7A] block text-[10px]">Reason: {entry.reason}</span>
+                <div className="flex items-center justify-between text-[10px]">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="font-bold font-mono px-1.5 py-0.2 rounded bg-slate-200 text-[#002D72]">
+                      {entry.actor_role || entry.who}
+                    </span>
+                    <span className="font-semibold text-[#002D72]">
+                      {entry.action || entry.what}
+                    </span>
+                  </div>
+                  <span className="font-mono text-[#5B6B7A]">
+                    {entry.timestamp.includes('T') ? new Date(entry.timestamp).toLocaleTimeString() : entry.timestamp}
+                  </span>
                 </div>
-                <span className="font-tabular text-[#5B6B7A] shrink-0">{entry.timestamp}</span>
+                <div className="flex items-center gap-2 text-[10px] text-[#5B6B7A]">
+                  <span>Case: <strong className="font-mono text-[#002D72]">{entry.case_id || entry.payment_id}</strong></span>
+                  <span>Reason Code: <code className="font-mono bg-white px-1 rounded border border-slate-200">{entry.reason_code || 'STAFF_ACTION'}</code></span>
+                </div>
+                <p className="text-[#1B2733] text-[11px] leading-tight">{entry.reason || entry.what}</p>
               </div>
             ))
           )}

@@ -1,0 +1,227 @@
+{
+  "rule_version": "2026.10.1-prod",
+  "evaluated_at": "2026-10-18T17:45:07.672Z",
+  "total_members": 118,
+  "headline": {
+    "ato_quarantined": 12,
+    "ato_total": 12,
+    "other_quarantined": 0,
+    "other_total": 106,
+    "lead_time_min": 3,
+    "lead_time_max": 9,
+    "light_fired": 4,
+    "lookalikes_total": 20,
+    "light_members": [
+      "M1039",
+      "M1041",
+      "M1051",
+      "M1114"
+    ],
+    "dollars_attempted": 37855.17,
+    "dollars_sent": 19244.71,
+    "dollars_prevented": 18610.46,
+    "dollars_recovered": 3578.83,
+    "net_loss": 15665.88,
+    "summary_text": "QUARANTINE fired on 12 of 12 takeover journeys, 3–9 min before the first payment. 0 of 106 other members quarantined (36 other scams, 50 routine, 20 look-alikes). LIGHT fired on 4 of 20 look-alikes (M1039, M1041, M1051, M1114, all real movers). Takeover dollars in the data: $37,855.17 attempted, $19,244.71 sent, $15,665.88 net loss."
+  },
+  "counts_by_scenario": {
+    "ato": {
+      "total": 12,
+      "quarantine": 12,
+      "light": 0,
+      "none": 0,
+      "dollars_attempted": 37855.17,
+      "dollars_sent": 19244.71,
+      "dollars_prevented": 18610.46,
+      "dollars_recovered": 3578.83,
+      "net_loss": 15665.88
+    },
+    "lookalikes": {
+      "total": 20,
+      "quarantine": 0,
+      "light": 4,
+      "none": 16
+    },
+    "other_scams": {
+      "total": 36,
+      "quarantine": 0,
+      "light": 0,
+      "none": 36
+    },
+    "routine": {
+      "total": 50,
+      "quarantine": 0,
+      "light": 0,
+      "none": 50
+    }
+  },
+  "ato_journeys": [
+    {
+      "id": "ATO-01",
+      "member": "M1003",
+      "payeeAdded": "10/15 22:19",
+      "firstPayment": "22:22",
+      "rail": "P2P",
+      "leadTime": "3 min",
+      "leadMinutes": 3,
+      "attempted": "$3,006.33",
+      "outcome": "Loss"
+    },
+    {
+      "id": "ATO-02",
+      "member": "M1007",
+      "payeeAdded": "10/14 23:13",
+      "firstPayment": "23:17",
+      "rail": "P2P",
+      "leadTime": "4 min",
+      "leadMinutes": 4,
+      "attempted": "$3,461.24",
+      "outcome": "Loss partly recovered"
+    },
+    {
+      "id": "ATO-03",
+      "member": "M1010",
+      "payeeAdded": "10/15 12:58",
+      "firstPayment": "13:05",
+      "rail": "P2P",
+      "leadTime": "7 min",
+      "leadMinutes": 7,
+      "attempted": "$3,541.94",
+      "outcome": "Prevented"
+    },
+    {
+      "id": "ATO-04",
+      "member": "M1016",
+      "payeeAdded": "10/17 07:07",
+      "firstPayment": "07:11",
+      "rail": "P2P",
+      "leadTime": "4 min",
+      "leadMinutes": 4,
+      "attempted": "$3,240.16",
+      "outcome": "Loss"
+    },
+    {
+      "id": "ATO-05",
+      "member": "M1027",
+      "payeeAdded": "10/13 22:35",
+      "firstPayment": "22:44",
+      "rail": "External Transfer",
+      "leadTime": "9 min",
+      "leadMinutes": 9,
+      "attempted": "$3,100.18",
+      "outcome": "Prevented"
+    },
+    {
+      "id": "ATO-06",
+      "member": "M1046",
+      "payeeAdded": "10/17 12:26",
+      "firstPayment": "12:31",
+      "rail": "External Transfer",
+      "leadTime": "5 min",
+      "leadMinutes": 5,
+      "attempted": "$3,097.56",
+      "outcome": "Prevented"
+    },
+    {
+      "id": "ATO-07",
+      "member": "M1047",
+      "payeeAdded": "10/12 19:23",
+      "firstPayment": "19:28",
+      "rail": "External Transfer",
+      "leadTime": "5 min",
+      "leadMinutes": 5,
+      "attempted": "$2,452.57",
+      "outcome": "Prevented"
+    },
+    {
+      "id": "ATO-08",
+      "member": "M1050",
+      "payeeAdded": "10/10 21:37",
+      "firstPayment": "21:41",
+      "rail": "P2P",
+      "leadTime": "4 min",
+      "leadMinutes": 4,
+      "attempted": "$2,909.04",
+      "outcome": "Prevented"
+    },
+    {
+      "id": "ATO-09",
+      "member": "M1058",
+      "payeeAdded": "10/16 20:11",
+      "firstPayment": "20:17",
+      "rail": "External Transfer",
+      "leadTime": "6 min",
+      "leadMinutes": 6,
+      "attempted": "$2,960.47",
+      "outcome": "Loss"
+    },
+    {
+      "id": "ATO-10",
+      "member": "M1105",
+      "payeeAdded": "10/08 13:05",
+      "firstPayment": "13:10",
+      "rail": "P2P",
+      "leadTime": "5 min",
+      "leadMinutes": 5,
+      "attempted": "$3,199.34",
+      "outcome": "Loss partly recovered"
+    },
+    {
+      "id": "ATO-11",
+      "member": "M1111",
+      "payeeAdded": "10/19 21:18",
+      "firstPayment": "21:25",
+      "rail": "External Transfer",
+      "leadTime": "7 min",
+      "leadMinutes": 7,
+      "attempted": "$3,377.17",
+      "outcome": "Loss"
+    },
+    {
+      "id": "ATO-12",
+      "member": "M1115",
+      "payeeAdded": "10/20 22:03",
+      "firstPayment": "22:12",
+      "rail": "P2P",
+      "leadTime": "9 min",
+      "leadMinutes": 9,
+      "attempted": "$3,509.17",
+      "outcome": "Prevented"
+    }
+  ],
+  "active_rules": {
+    "rule_version": "2026.10.1-prod",
+    "rule_name": "Sound Guardian Deterministic Sentry & Arbiter Rules",
+    "effective_date": "2026-10-01",
+    "description": "Deterministic shift-left security rules protecting members at payee enrollment and payment initiation without demographic bias.",
+    "windows": {
+      "password_reset_days": 7,
+      "contact_channel_change_days": 30,
+      "address_change_days": 30,
+      "pre_change_lookup_days": 90,
+      "light_hold_duration_hours": 4
+    },
+    "thresholds": {
+      "reset_days": 7,
+      "contact_change_days": 30,
+      "address_change_days": 30,
+      "pre_change_lookup_days": 90,
+      "hold_hours": 4
+    },
+    "tier_names": {
+      "QUARANTINE": "QUARANTINE",
+      "LIGHT": "LIGHT",
+      "NONE": "NONE"
+    },
+    "actions": {
+      "QUARANTINE": "BLOCK_PAYEE_PENDING_CONFIRMATION",
+      "LIGHT": "ONE_TAP_VERIFY",
+      "NONE": "PROCESS_NORMALLY"
+    },
+    "reason_codes": {
+      "QUARANTINE": "RESET_PLUS_EMAIL_PHONE_CHANGE_NEW_PAYEE",
+      "LIGHT": "RESET_PLUS_ADDRESS_CHANGE_NEW_PAYEE",
+      "NONE": "STANDARD_ACTIVITY"
+    }
+  }
+}
